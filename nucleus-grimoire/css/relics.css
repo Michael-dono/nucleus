@@ -1,0 +1,45 @@
+/* The relic (artifact) choice screen — deliberately not a card: wide plates, socketed glyphs, rank pips. */
+#scChoice.relicmode{background:rgba(10,7,3,.92);}
+#scChoice.relicmode .eyebrow{color:#a8873f;}
+#scChoice.relicmode h2.mode{color:#f0d9a0;}
+.relic-list{display:flex;flex-direction:column;gap:10px;width:100%;}
+.relic-board{display:flex;align-items:center;gap:12px;padding:9px 13px;
+  border:1px solid rgba(201,162,39,.3);background:rgba(28,22,8,.6);}
+.rb-label{font-family:var(--f-mono);font-size:9px;letter-spacing:.24em;color:#a8873f;}
+.rb-pips{display:flex;gap:5px;flex:1;}
+.rb-pips i{width:11px;height:11px;border:1px solid rgba(201,162,39,.4);transform:rotate(45deg);display:block;}
+.rb-pips i.filled{background:#c9a227;border-color:#e8c65c;}
+.rb-pips i.next{border-color:#ffd166;box-shadow:0 0 0 2px rgba(255,209,102,.18);}
+.rb-count{font-family:var(--f-mono);font-size:11px;color:#e8c65c;font-variant-numeric:tabular-nums;}
+
+.relic-plate{position:relative;display:flex;align-items:stretch;gap:0;width:100%;
+  background:linear-gradient(90deg,#1c1508 0%,#14110c 46%,#101014 100%);
+  border:1px solid rgba(201,162,39,.32);color:inherit;font:inherit;text-align:left;
+  cursor:pointer;padding:0;transition:border-color .12s ease,transform .12s ease,background .12s ease;}
+.relic-plate:hover,.relic-plate:focus-visible{border-color:rgba(255,209,102,.8);transform:translateX(3px);
+  background:linear-gradient(90deg,#251c0b 0%,#1a160f 46%,#141419 100%);}
+.relic-plate:focus-visible{outline:2px solid var(--spark);outline-offset:2px;}
+.rp-socket{flex:none;width:74px;display:grid;place-items:center;position:relative;
+  border-right:1px solid rgba(201,162,39,.22);}
+.rp-socket::before{content:'';position:absolute;width:46px;height:46px;transform:rotate(45deg);
+  border:1px solid var(--c);opacity:.55;}
+.rp-socket::after{content:'';position:absolute;width:30px;height:30px;transform:rotate(45deg);
+  background:var(--c);opacity:.10;}
+.rp-socket svg{width:26px;height:26px;position:relative;}
+.rp-body{flex:1;min-width:0;padding:13px 15px;display:flex;flex-direction:column;gap:4px;}
+.rp-bound{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.2em;color:#a8873f;}
+.rp-name{font-family:var(--f-disp);font-weight:700;font-size:15px;letter-spacing:.08em;color:#f3e6c4;}
+.rp-txt{font-size:13px;line-height:1.5;color:#c6bfae;}
+.rp-txt em{color:#ffe9b0;font-style:normal;font-weight:600;}
+.rp-meta{flex:none;padding:13px 15px;display:flex;flex-direction:column;align-items:flex-end;
+  justify-content:center;gap:7px;border-left:1px solid rgba(201,162,39,.16);min-width:112px;}
+.rp-pips{display:flex;gap:3px;}
+.rp-pips i{width:7px;height:7px;transform:rotate(45deg);border:1px solid rgba(201,162,39,.45);display:block;}
+.rp-pips i.on{background:#c9a227;border-color:#e8c65c;}
+.rp-pips i.gain{background:#ffd166;border-color:#fff0c0;box-shadow:0 0 6px rgba(255,209,102,.6);}
+.rp-rank{font-family:var(--f-mono);font-size:9px;letter-spacing:.12em;color:#a8873f;white-space:nowrap;}
+@media (max-width:560px){
+  .rp-socket{width:56px;} .rp-socket::before{width:38px;height:38px;}
+  .rp-meta{min-width:0;padding:13px 10px;} .rp-rank{display:none;}
+}
+@media (prefers-reduced-motion:reduce){ .relic-plate{transition:none;} .relic-plate:hover{transform:none;} }

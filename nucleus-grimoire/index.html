@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nucleus Grimoire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=JetBrains+Mono:wght@400;700&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/hud.css">
+<link rel="stylesheet" href="css/screens.css">
+<link rel="stylesheet" href="css/relics.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div class="rail">
+      <div class="rail-top">
+        <span class="wave-name" id="waveName">WAVE I · SHARDS</span>
+        <span class="wave-sub" id="waveSub">next: the great shard</span>
+        <span class="spacer"></span>
+        <span class="readout"><span>TIME <b id="rTime">0:00</b></span><span>KILLS <b id="rKills">0</b></span><span>LV <b id="rLv">1</b></span></span>
+      </div>
+      <div class="meter m-wave"><i id="mWave"></i></div>
+      <div class="barline"><span class="tag">HP</span><div class="meter m-hp"><i id="mHp"></i></div><span class="num" id="nHp">100/100</span></div>
+      <div class="barline"><span class="tag">XP</span><div class="meter m-xp"><i id="mXp"></i></div><span class="num" id="nXp">0/11</span></div>
+      <div id="bossbar"><div class="bn" id="bossName">BOSS</div><div class="meter"><i id="mBoss"></i></div></div>
+    </div>
+    <div id="tray">
+      <div class="tray-grp"><span class="tlabel">MAGIC <b id="magicCount">1/6</b></span><div id="pips"></div></div>
+      <div class="tray-grp right"><span class="tlabel">ARTIFACTS <b id="slotCount">0/8</b></span><div id="slots"></div></div>
+    </div>
+  </div>
+
+  <!-- START -->
+  <div class="screen on" id="scStart">
+    <div class="sheet">
+      <span class="eyebrow">A minimalist survivors roguelike</span>
+      <h1 class="title">Nucleus Grimoire</h1>
+      <p class="lede">You are a bound nucleus on an endless plane — fire, ice, light and shadow
+        held in orbit around a single core. The geometry is hostile and it does not tire.</p>
+      <p class="lede" style="font-size:13px;color:var(--bone-faint);max-width:50ch;">
+        Eight elemental magics — carry up to four — each to level 15, each with three talents: you take two, at levels 7 and 15. You choose your starting magic — your core takes its colour — and a starting relic;
+        every boss and the first elite of each wave drop another.
+        <b style="color:var(--bone-dim);font-weight:600">Eight artifact slots, twenty in the world</b>.</p>
+      <div class="toggles" id="modeToggles">
+        <button class="tg" id="tgNormal" aria-pressed="true">WAVE LENGTH · 2:00 — NORMAL</button>
+        <button class="tg" id="tgQuick" aria-pressed="false">WAVE LENGTH · 0:45 — QUICK TEST</button>
+      </div>
+      <div class="keys">
+        <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows — move</span>
+        <span>drag anywhere — touch stick</span>
+        <span><kbd>Esc</kbd> — pause</span>
+      </div>
+      <button class="btn primary" id="btnStart">Begin the run</button>
+      <p class="lede" id="bestLine" style="font-size:12px;letter-spacing:.06em;"></p>
+    </div>
+  </div>
+
+  <!-- LEVEL UP / TALENT / RELIC -->
+  <div class="screen" id="scChoice">
+    <div class="sheet" tabindex="-1" style="outline:none;">
+      <span class="eyebrow" id="chEyebrow">Level 2</span>
+      <h2 class="mode" id="chTitle">Choose a magic</h2>
+      <div class="cards" id="chCards"></div>
+    </div>
+  </div>
+
+  <!-- PAUSE -->
+  <div class="screen" id="scPause">
+    <div class="sheet">
+      <span class="eyebrow">Held</span>
+      <h2 class="mode">Paused</h2>
+      <div class="loadout" id="pauseLoadout"></div>
+      <button class="btn" id="btnResume">Resume</button>
+      <button class="btn" id="btnQuit">Abandon run</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div class="screen" id="scOver">
+    <div class="sheet">
+      <span class="eyebrow">The plane closes over you</span>
+      <h1 class="title" id="overTitle">Unmade</h1>
+      <div class="statgrid" id="overStats"></div>
+      <div class="loadout" id="overLoadout"></div>
+      <button class="btn primary" id="btnAgain">Run again</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

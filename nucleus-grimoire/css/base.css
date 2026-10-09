@@ -1,0 +1,19 @@
+/* Design tokens, page shell and the game canvas. Loaded first; every other sheet uses these tokens. */
+:root{
+  --ink:#08090c; --ink2:#0e1015; --ink3:#14171e;
+  --bone:#e9e5da; --bone-dim:#8b887f; --bone-faint:#4a4a46;
+  --violet:#8b6cff; --spark:#ffd166; --acid:#9ef01a; --ember:#ff6b35;
+  --frost:#5ad2f4; --gale:#79c7bf; --aura:#c77dff; --blood:#ef476f;
+  --edge:rgba(233,229,218,.16);
+  --plate:#0f1118;
+  --f-disp:'Cinzel',Georgia,serif;
+  --f-body:'Spectral',Georgia,serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+html,body{height:100%;}
+body{margin:0;background:var(--ink);color:var(--bone);font-family:var(--f-body);overflow:hidden;
+     -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;}
+#app{position:relative;height:100%;width:100%;overflow:hidden;background:var(--ink);}
+canvas#game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
+
+#joy{position:absolute;pointer-events:none;display:none;}

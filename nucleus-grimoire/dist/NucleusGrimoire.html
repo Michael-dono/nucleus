@@ -1,0 +1,3717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nucleus Grimoire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=JetBrains+Mono:wght@400;700&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* ==== css/base.css ==== */
+/* Design tokens, page shell and the game canvas. Loaded first; every other sheet uses these tokens. */
+:root{
+  --ink:#08090c; --ink2:#0e1015; --ink3:#14171e;
+  --bone:#e9e5da; --bone-dim:#8b887f; --bone-faint:#4a4a46;
+  --violet:#8b6cff; --spark:#ffd166; --acid:#9ef01a; --ember:#ff6b35;
+  --frost:#5ad2f4; --gale:#79c7bf; --aura:#c77dff; --blood:#ef476f;
+  --edge:rgba(233,229,218,.16);
+  --plate:#0f1118;
+  --f-disp:'Cinzel',Georgia,serif;
+  --f-body:'Spectral',Georgia,serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+html,body{height:100%;}
+body{margin:0;background:var(--ink);color:var(--bone);font-family:var(--f-body);overflow:hidden;
+     -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;}
+#app{position:relative;height:100%;width:100%;overflow:hidden;background:var(--ink);}
+canvas#game{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
+
+#joy{position:absolute;pointer-events:none;display:none;}
+
+/* ==== css/hud.css ==== */
+/* In-run HUD: top rail (wave, time, HP/XP, boss bar) and the bottom tray (magic pips, artifact slots). */
+#hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;}
+.rail{padding:10px 16px 0;display:flex;flex-direction:column;gap:7px;}
+.rail-top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
+.wave-name{font-family:var(--f-disp);font-weight:700;font-size:15px;letter-spacing:.14em;text-transform:uppercase;}
+.wave-sub{font-family:var(--f-mono);font-size:11px;color:var(--bone-dim);letter-spacing:.08em;}
+.spacer{flex:1 1 auto;}
+.readout{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;color:var(--bone-dim);
+         font-variant-numeric:tabular-nums;display:flex;gap:14px;}
+.readout b{color:var(--bone);font-weight:700;}
+
+.meter{height:6px;background:rgba(233,229,218,.08);position:relative;overflow:hidden;}
+.meter > i{position:absolute;inset:0 auto 0 0;width:0;display:block;transition:width .12s linear;}
+.m-wave > i{background:linear-gradient(90deg,#55607a,#9aa6c4);}
+.m-hp{height:9px;border:1px solid var(--edge);}
+.m-hp > i{background:linear-gradient(90deg,#8e2440,var(--blood));}
+.m-xp > i{background:linear-gradient(90deg,#4c3a9e,var(--violet));}
+.barline{display:flex;align-items:center;gap:9px;}
+.barline .tag{font-family:var(--f-mono);font-size:10px;letter-spacing:.16em;color:var(--bone-faint);width:26px;}
+.barline .meter{flex:1;}
+.barline .num{font-family:var(--f-mono);font-size:11px;color:var(--bone-dim);font-variant-numeric:tabular-nums;min-width:64px;text-align:right;}
+
+#bossbar{margin-top:4px;display:none;flex-direction:column;gap:4px;}
+#bossbar.on{display:flex;}
+#bossbar .bn{font-family:var(--f-disp);font-size:12px;letter-spacing:.3em;text-align:center;color:var(--blood);}
+#bossbar .meter{height:8px;border:1px solid rgba(239,71,111,.4);}
+#bossbar .meter > i{background:linear-gradient(90deg,#5c0f22,var(--blood));}
+
+/* bottom tray: magic pips + artifact slots */
+#tray{margin-top:auto;padding:0 16px 14px;display:flex;gap:18px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;}
+.tray-grp{display:flex;flex-direction:column;gap:6px;min-width:0;}
+.tray-grp.right{align-items:flex-end;}
+.tlabel{font-family:var(--f-mono);font-size:9px;letter-spacing:.24em;color:var(--bone-faint);}
+.tlabel b{color:var(--bone-dim);font-weight:700;font-variant-numeric:tabular-nums;}
+#pips{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;}
+#slots{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;}
+.slot{width:30px;height:30px;border:1px solid rgba(233,229,218,.12);background:rgba(10,12,17,.6);
+      display:grid;place-items:center;position:relative;}
+.slot svg{width:17px;height:17px;}
+.slot.empty::after{content:'';width:5px;height:5px;border:1px solid rgba(233,229,218,.14);transform:rotate(45deg);}
+.slot.filled{border-color:rgba(154,166,196,.4);}
+.slot .rk{position:absolute;right:1px;bottom:0;font-family:var(--f-mono);font-size:8px;color:var(--bone-dim);line-height:1;}
+.slot .rk.max{color:var(--spark);}
+.pip{display:flex;flex-direction:column;align-items:center;gap:4px;width:44px;}
+.pip .glyph{width:38px;height:38px;border:1px solid var(--edge);background:rgba(10,12,17,.72);
+            display:grid;place-items:center;position:relative;}
+.pip .glyph svg{width:22px;height:22px;}
+.pip .cdmask{position:absolute;inset:0;background:rgba(6,7,10,.66);transform-origin:bottom;}
+.pip .lv{font-family:var(--f-mono);font-size:9px;letter-spacing:.05em;color:var(--bone-dim);}
+.pip .lv.max{color:var(--spark);}
+.pip.tal .glyph{border-color:rgba(255,209,102,.55);}
+
+@media (max-width:560px){ .rail{padding:8px 12px 0;} #tray{padding:0 12px 12px;gap:10px;}
+                          .slot{width:26px;height:26px;} .slot svg{width:14px;height:14px;} }
+
+/* ==== css/screens.css ==== */
+/* Full-screen overlays (start, level-up, pause, game over) and the pieces they share:
+   upgrade cards, buttons, toggles, key hints, stat grid, loadout chips. */
+.screen{position:absolute;inset:0;display:none;place-items:center;background:rgba(5,6,9,.9);
+        backdrop-filter:blur(3px);pointer-events:auto;z-index:5;overflow-y:auto;}
+.screen.on{display:grid;}
+.sheet{width:min(940px,100%);padding:26px 16px 34px;display:flex;flex-direction:column;gap:18px;align-items:center;}
+
+.eyebrow{font-family:var(--f-mono);font-size:10px;letter-spacing:.42em;color:var(--bone-faint);text-transform:uppercase;}
+h1.title{font-family:var(--f-disp);font-weight:700;font-size:clamp(30px,7vw,54px);letter-spacing:.1em;margin:0;
+         text-wrap:balance;text-align:center;line-height:1.06;}
+h2.mode{font-family:var(--f-disp);font-weight:500;font-size:clamp(17px,3.6vw,23px);letter-spacing:.22em;margin:0;text-align:center;}
+.lede{max-width:56ch;text-align:center;color:var(--bone-dim);font-size:15px;line-height:1.6;margin:0;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(214px,1fr));gap:12px;width:100%;}
+.card{pointer-events:auto;text-align:left;background:var(--plate);border:1px solid var(--edge);
+      padding:0;color:inherit;font:inherit;cursor:pointer;display:flex;flex-direction:column;
+      position:relative;transition:transform .12s ease,border-color .12s ease,background .12s ease;}
+.card:hover,.card:focus-visible{transform:translateY(-3px);border-color:rgba(233,229,218,.42);background:#141824;}
+.card:focus-visible{outline:2px solid var(--spark);outline-offset:2px;}
+.card .accent{height:3px;width:100%;}
+.card .body{padding:14px 15px 16px;display:flex;flex-direction:column;gap:9px;height:100%;}
+.card .head{display:flex;align-items:center;gap:10px;}
+.card .head svg{width:26px;height:26px;flex:none;}
+.card .nm{font-family:var(--f-disp);font-weight:700;font-size:14px;letter-spacing:.07em;line-height:1.2;}
+.card .kind{font-family:var(--f-mono);font-size:9px;letter-spacing:.2em;color:var(--bone-faint);text-transform:uppercase;}
+.card .txt{font-size:13.5px;line-height:1.55;color:#cbc7bd;margin:0;}
+.card .txt em{color:var(--bone);font-style:normal;font-weight:600;}
+.card .foot{margin-top:auto;font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;color:var(--bone-faint);
+            display:flex;justify-content:space-between;gap:8px;padding-top:4px;}
+.card.talent{background:#14121b;border-color:rgba(199,125,255,.3);}
+.card.talent:hover{border-color:rgba(199,125,255,.65);background:#1a1626;}
+.card.relic{background:#17150e;border-color:rgba(255,209,102,.3);}
+.card.relic:hover,.card.relic:focus-visible{border-color:rgba(255,209,102,.7);background:#1d1a11;}
+
+.btn{pointer-events:auto;font-family:var(--f-disp);font-weight:700;letter-spacing:.2em;font-size:13px;
+     text-transform:uppercase;background:transparent;color:var(--bone);border:1px solid var(--edge);
+     padding:12px 26px;cursor:pointer;transition:background .12s,border-color .12s;}
+.btn:hover,.btn:focus-visible{background:rgba(233,229,218,.1);border-color:var(--bone-dim);}
+.btn:focus-visible{outline:2px solid var(--spark);outline-offset:2px;}
+.btn.primary{border-color:var(--violet);color:#d9cfff;}
+.btn.primary:hover{background:rgba(139,108,255,.16);}
+
+.toggles{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+.tg{pointer-events:auto;cursor:pointer;border:1px solid var(--edge);padding:9px 15px;background:transparent;
+    color:var(--bone-dim);font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;}
+.tg[aria-pressed="true"]{border-color:var(--spark);color:var(--spark);background:rgba(255,209,102,.07);}
+
+.keys{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;font-family:var(--f-mono);
+      font-size:11px;letter-spacing:.08em;color:var(--bone-faint);}
+.keys kbd{border:1px solid var(--edge);padding:2px 6px;color:var(--bone-dim);font-family:inherit;}
+
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--edge);
+          border:1px solid var(--edge);width:100%;}
+.statgrid div{background:var(--ink2);padding:12px 14px;}
+.statgrid .k{font-family:var(--f-mono);font-size:9px;letter-spacing:.2em;color:var(--bone-faint);text-transform:uppercase;}
+.statgrid .v{font-family:var(--f-mono);font-size:21px;font-variant-numeric:tabular-nums;margin-top:3px;}
+
+.loadout{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+.lo{display:flex;align-items:center;gap:6px;border:1px solid var(--edge);padding:5px 9px;
+    font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;color:var(--bone-dim);}
+.lo svg{width:14px;height:14px;}
+
+@media (max-width:560px){ .sheet{padding:20px 14px 30px;} }
+@media (prefers-reduced-motion:reduce){ .card{transition:none;} .card:hover{transform:none;} }
+
+/* ==== css/relics.css ==== */
+/* The relic (artifact) choice screen — deliberately not a card: wide plates, socketed glyphs, rank pips. */
+#scChoice.relicmode{background:rgba(10,7,3,.92);}
+#scChoice.relicmode .eyebrow{color:#a8873f;}
+#scChoice.relicmode h2.mode{color:#f0d9a0;}
+.relic-list{display:flex;flex-direction:column;gap:10px;width:100%;}
+.relic-board{display:flex;align-items:center;gap:12px;padding:9px 13px;
+  border:1px solid rgba(201,162,39,.3);background:rgba(28,22,8,.6);}
+.rb-label{font-family:var(--f-mono);font-size:9px;letter-spacing:.24em;color:#a8873f;}
+.rb-pips{display:flex;gap:5px;flex:1;}
+.rb-pips i{width:11px;height:11px;border:1px solid rgba(201,162,39,.4);transform:rotate(45deg);display:block;}
+.rb-pips i.filled{background:#c9a227;border-color:#e8c65c;}
+.rb-pips i.next{border-color:#ffd166;box-shadow:0 0 0 2px rgba(255,209,102,.18);}
+.rb-count{font-family:var(--f-mono);font-size:11px;color:#e8c65c;font-variant-numeric:tabular-nums;}
+
+.relic-plate{position:relative;display:flex;align-items:stretch;gap:0;width:100%;
+  background:linear-gradient(90deg,#1c1508 0%,#14110c 46%,#101014 100%);
+  border:1px solid rgba(201,162,39,.32);color:inherit;font:inherit;text-align:left;
+  cursor:pointer;padding:0;transition:border-color .12s ease,transform .12s ease,background .12s ease;}
+.relic-plate:hover,.relic-plate:focus-visible{border-color:rgba(255,209,102,.8);transform:translateX(3px);
+  background:linear-gradient(90deg,#251c0b 0%,#1a160f 46%,#141419 100%);}
+.relic-plate:focus-visible{outline:2px solid var(--spark);outline-offset:2px;}
+.rp-socket{flex:none;width:74px;display:grid;place-items:center;position:relative;
+  border-right:1px solid rgba(201,162,39,.22);}
+.rp-socket::before{content:'';position:absolute;width:46px;height:46px;transform:rotate(45deg);
+  border:1px solid var(--c);opacity:.55;}
+.rp-socket::after{content:'';position:absolute;width:30px;height:30px;transform:rotate(45deg);
+  background:var(--c);opacity:.10;}
+.rp-socket svg{width:26px;height:26px;position:relative;}
+.rp-body{flex:1;min-width:0;padding:13px 15px;display:flex;flex-direction:column;gap:4px;}
+.rp-bound{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.2em;color:#a8873f;}
+.rp-name{font-family:var(--f-disp);font-weight:700;font-size:15px;letter-spacing:.08em;color:#f3e6c4;}
+.rp-txt{font-size:13px;line-height:1.5;color:#c6bfae;}
+.rp-txt em{color:#ffe9b0;font-style:normal;font-weight:600;}
+.rp-meta{flex:none;padding:13px 15px;display:flex;flex-direction:column;align-items:flex-end;
+  justify-content:center;gap:7px;border-left:1px solid rgba(201,162,39,.16);min-width:112px;}
+.rp-pips{display:flex;gap:3px;}
+.rp-pips i{width:7px;height:7px;transform:rotate(45deg);border:1px solid rgba(201,162,39,.45);display:block;}
+.rp-pips i.on{background:#c9a227;border-color:#e8c65c;}
+.rp-pips i.gain{background:#ffd166;border-color:#fff0c0;box-shadow:0 0 6px rgba(255,209,102,.6);}
+.rp-rank{font-family:var(--f-mono);font-size:9px;letter-spacing:.12em;color:#a8873f;white-space:nowrap;}
+@media (max-width:560px){
+  .rp-socket{width:56px;} .rp-socket::before{width:38px;height:38px;}
+  .rp-meta{min-width:0;padding:13px 10px;} .rp-rank{display:none;}
+}
+@media (prefers-reduced-motion:reduce){ .relic-plate{transition:none;} .relic-plate:hover{transform:none;} }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div class="rail">
+      <div class="rail-top">
+        <span class="wave-name" id="waveName">WAVE I · SHARDS</span>
+        <span class="wave-sub" id="waveSub">next: the great shard</span>
+        <span class="spacer"></span>
+        <span class="readout"><span>TIME <b id="rTime">0:00</b></span><span>KILLS <b id="rKills">0</b></span><span>LV <b id="rLv">1</b></span></span>
+      </div>
+      <div class="meter m-wave"><i id="mWave"></i></div>
+      <div class="barline"><span class="tag">HP</span><div class="meter m-hp"><i id="mHp"></i></div><span class="num" id="nHp">100/100</span></div>
+      <div class="barline"><span class="tag">XP</span><div class="meter m-xp"><i id="mXp"></i></div><span class="num" id="nXp">0/11</span></div>
+      <div id="bossbar"><div class="bn" id="bossName">BOSS</div><div class="meter"><i id="mBoss"></i></div></div>
+    </div>
+    <div id="tray">
+      <div class="tray-grp"><span class="tlabel">MAGIC <b id="magicCount">1/6</b></span><div id="pips"></div></div>
+      <div class="tray-grp right"><span class="tlabel">ARTIFACTS <b id="slotCount">0/8</b></span><div id="slots"></div></div>
+    </div>
+  </div>
+
+  <!-- START -->
+  <div class="screen on" id="scStart">
+    <div class="sheet">
+      <span class="eyebrow">A minimalist survivors roguelike</span>
+      <h1 class="title">Nucleus Grimoire</h1>
+      <p class="lede">You are a bound nucleus on an endless plane — fire, ice, light and shadow
+        held in orbit around a single core. The geometry is hostile and it does not tire.</p>
+      <p class="lede" style="font-size:13px;color:var(--bone-faint);max-width:50ch;">
+        Eight elemental magics — carry up to four — each to level 15, each with three talents: you take two, at levels 7 and 15. You choose your starting magic — your core takes its colour — and a starting relic;
+        every boss and the first elite of each wave drop another.
+        <b style="color:var(--bone-dim);font-weight:600">Eight artifact slots, twenty in the world</b>.</p>
+      <div class="toggles" id="modeToggles">
+        <button class="tg" id="tgNormal" aria-pressed="true">WAVE LENGTH · 2:00 — NORMAL</button>
+        <button class="tg" id="tgQuick" aria-pressed="false">WAVE LENGTH · 0:45 — QUICK TEST</button>
+      </div>
+      <div class="keys">
+        <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows — move</span>
+        <span>drag anywhere — touch stick</span>
+        <span><kbd>Esc</kbd> — pause</span>
+      </div>
+      <button class="btn primary" id="btnStart">Begin the run</button>
+      <p class="lede" id="bestLine" style="font-size:12px;letter-spacing:.06em;"></p>
+    </div>
+  </div>
+
+  <!-- LEVEL UP / TALENT / RELIC -->
+  <div class="screen" id="scChoice">
+    <div class="sheet" tabindex="-1" style="outline:none;">
+      <span class="eyebrow" id="chEyebrow">Level 2</span>
+      <h2 class="mode" id="chTitle">Choose a magic</h2>
+      <div class="cards" id="chCards"></div>
+    </div>
+  </div>
+
+  <!-- PAUSE -->
+  <div class="screen" id="scPause">
+    <div class="sheet">
+      <span class="eyebrow">Held</span>
+      <h2 class="mode">Paused</h2>
+      <div class="loadout" id="pauseLoadout"></div>
+      <button class="btn" id="btnResume">Resume</button>
+      <button class="btn" id="btnQuit">Abandon run</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div class="screen" id="scOver">
+    <div class="sheet">
+      <span class="eyebrow">The plane closes over you</span>
+      <h1 class="title" id="overTitle">Unmade</h1>
+      <div class="statgrid" id="overStats"></div>
+      <div class="loadout" id="overLoadout"></div>
+      <button class="btn primary" id="btnAgain">Run again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+/* ==== js/core/state.js ==== */
+/* The single source of truth for a run. Every system reads and writes this object;
+   the UI only displays it. Arrays are cleared in place (length = 0) so references stay valid. */
+
+const S = {
+  running:false, over:false, paused:false, quick:false,
+  t:0, time:0, kills:0, wave:0, waveTime:0, waveLen:120,
+  bossActive:false, boss:null, shake:0, hitFlash:0,
+  cam:{x:0,y:0},
+  player:null,
+  spells:{},        /* key -> {lv, cd, t7, t15, cast} */
+  passives:{},      /* artifact key -> rank */
+  mods:null,        /* derived from artifacts by computeMods() */
+  enemies:[], shots:[], eshots:[], orbs:[], zones:[], parts:[], nums:[],
+  queue:[], choiceOpen:false, best:null, blasts:[]
+};
+
+/* ==== js/core/view.js ==== */
+/* The canvas and the size of the visible play area. Game logic reads view.w / view.h for
+   "what is on screen" (targeting, spawn distance, rays reaching the screen edge). */
+
+const cvs = document.getElementById('game');
+const ctx = cvs.getContext('2d');
+const view = {w:0, h:0, dpr:1};
+
+function resize(){
+  view.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const r = cvs.getBoundingClientRect();
+  view.w = Math.max(320, r.width); view.h = Math.max(320, r.height);
+  cvs.width = Math.round(view.w * view.dpr); cvs.height = Math.round(view.h * view.dpr);
+}
+
+/* ==== js/core/math.js ==== */
+/* Small math and randomness helpers shared by every system. */
+
+const TAU = Math.PI * 2;
+const rnd = (a=1,b=0)=> b + Math.random()*(a-b);
+const rint = n => Math.floor(Math.random()*n);
+const pick = a => a[rint(a.length)];
+const clamp = (v,a,b)=> v<a?a:v>b?b:v;
+const dist2 = (ax,ay,bx,by)=>{const dx=ax-bx,dy=ay-by;return dx*dx+dy*dy;};
+const lerp = (a,b,t)=>a+(b-a)*t;
+
+/* the first projectile of a volley flies dead at the target; the rest fan around it */
+const fanAngle = (base,i,step)=> i===0 ? base
+  : base + Math.ceil(i/2)*(i%2?1:-1)*step + rnd(0.05,-0.05);
+
+/* '#rrggbb' + alpha -> 'rgba(...)' */
+const hexA = (hex, a) => { const v = parseInt(hex.slice(1),16); return `rgba(${v>>16},${(v>>8)&255},${v&255},${a})`; };
+
+/* ==== js/core/grid.js ==== */
+/* Spatial hash of live enemies, rebuilt once per frame. gridQuery returns a SHARED array
+   that the next query overwrites — copy or filter it before calling anything that may query again. */
+
+
+const GRID = {cell:72, map:new Map()};
+function gkey(cx,cy){ return cx*73856093 ^ cy*19349663; }
+
+function gridBuild(){
+  GRID.map.clear();
+  const c = GRID.cell;
+  for(const e of S.enemies){
+    if(e.dead) continue;
+    const k = gkey(Math.floor(e.x/c), Math.floor(e.y/c));
+    let a = GRID.map.get(k); if(!a){a=[];GRID.map.set(k,a);} a.push(e);
+  }
+}
+
+const _q = [];
+function gridQuery(x,y,r){
+  _q.length = 0;
+  const c = GRID.cell;
+  const x0=Math.floor((x-r)/c), x1=Math.floor((x+r)/c);
+  const y0=Math.floor((y-r)/c), y1=Math.floor((y+r)/c);
+  for(let cx=x0;cx<=x1;cx++) for(let cy=y0;cy<=y1;cy++){
+    const a = GRID.map.get(gkey(cx,cy));
+    if(a) for(let i=0;i<a.length;i++) _q.push(a[i]);
+  }
+  return _q;
+}
+
+/* ==== js/data/elements.js ==== */
+/* The single reference for what each element does. Every magic hits with its own element;
+   Prism rays roll one at random. Bosses shrug off fear, root and disrupt, and take half the slow.
+   The behaviour itself is in js/game/combat.js (applyElement) and js/game/enemies.js (timers). */
+
+const ELEMENTS = {
+  fire:    {name:'Fire',     color:'#ff4d3d'},
+  ice:     {name:'Ice',      color:'#8fe3ff'},
+  light:   {name:'Light',    color:'#fff1a8'},
+  dark:    {name:'Dark',     color:'#a35bd8'},
+  earth:   {name:'Earth',    color:'#a0703c'},
+  wind:    {name:'Wind',     color:'#79d98a'},
+  water:   {name:'Water',    color:'#2f8fe0'},
+  electric:{name:'Electric', color:'#7b6cff'}
+};
+const EL_KEYS = Object.keys(ELEMENTS);
+const EL = {
+  burnPct:0.10, burnDur:5,                  /* fire: 10% of the hit again, over 5s */
+  slow:0.15,    slowDur:1.5,                /* ice: movement slowed */
+  blindChance:0.5, blindDur:0.5,            /* light: contact may deal no damage */
+  fearDur:1,                                /* dark: runs away from you */
+  soak:0.20,    soakDur:2,                  /* water: +20% damage taken from every source */
+  shockDur:3,   shockPct:0.15, shockR:70,   /* electric: explodes on death for 15% of its max health */
+  windDur:1.2,                              /* wind: movement disrupted */
+  rootDur:1.2                               /* earth: held in place */
+};
+
+/* ==== js/game/effects.js ==== */
+/* Purely visual particles: bursts, expanding rings, electric arcs, floating damage numbers.
+   Nothing here affects gameplay. */
+
+
+
+function burst(x,y,c,n,scale){
+  const s = scale||1;
+  for(let i=0;i<n;i++){
+    if(S.parts.length>500) return;
+    const a = rnd(TAU), sp = rnd(190,40)*s;
+    S.parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,t:rnd(.6,.24),max:.6,c,r:rnd(2.6,1)*s});
+  }
+}
+function ring(x,y,r,c){ S.parts.push({ring:true,x,y,r0:r*0.25,r,t:0.34,max:0.34,c}); }
+
+/* a visible electric arc between two points */
+function zapFx(x1,y1,x2,y2){
+  const pts = [], n = 6;
+  for(let i=0;i<=n;i++){
+    const k = i/n, j = (i===0||i===n) ? 0 : 9;
+    pts.push([lerp(x1,x2,k)+rnd(j,-j), lerp(y1,y2,k)+rnd(j,-j)]);
+  }
+  S.parts.push({zap:true, pts, t:0.2, max:0.2, c:'#c4bdff', x:x1, y:y1});
+}
+
+function updateEffects(dt){
+  for(let i=S.parts.length-1;i>=0;i--){
+    const q=S.parts[i]; q.t-=dt;
+    if(q.t<=0){S.parts.splice(i,1);continue;}
+    if(!q.ring && !q.zap){ q.x+=q.vx*dt; q.y+=q.vy*dt; q.vx*=0.92; q.vy*=0.92; }
+  }
+  for(let i=S.nums.length-1;i>=0;i--){
+    const n=S.nums[i]; n.t-=dt; n.y += n.v*dt; n.v*=0.9;
+    if(n.t<=0) S.nums.splice(i,1);
+  }
+}
+
+/* ==== js/config.js ==== */
+/* Global tuning dials. Spell numbers live in each spell file (js/spells/*.js);
+   artifact numbers in js/data/artifacts.js; element effects in js/data/elements.js;
+   the enemy/boss scaling formulas in js/game/difficulty.js. */
+
+/* ---- difficulty dials ---- */
+const HP_GROWTH_PER_MIN = 3.5;   /* health multiplier per minute, before softening */
+/* the two ramps alternate: odd bosses (1st, 3rd, 5th...) toughen the horde, even bosses thicken it */
+const HP_GROWTH_STEP    = 0.5;   /* added to the growth after every odd boss */
+const SPAWN_STEP        = 1.12;  /* spawn rate multiplied by this after every even boss */
+const HP_RAMP_SOFTEN    = 0.68;  /* 1 = raw exponential; below 1 bends the late curve down */
+const ENEMY_START_HP = 50; /* normal enemy health at 0:00; the growth curve multiplies this */
+const SPAWN_SCALE = 6;     /* multiplier on how fast the horde arrives */
+const ENEMY_CAP   = 900;   /* concurrent enemies; the first thing to lower if frames drop */
+
+/* ---- run structure ---- */
+const WAVE_LEN = {normal:120, quick:45};   /* seconds until each wave's boss */
+const MAGIC_SLOTS = 4;                      /* magics carried at once */
+const ARTIFACT_SLOTS = 8;                   /* distinct artifacts carried at once */
+
+/* ---- the conjurer ---- */
+const PLAYER = {
+  hp: 120,          /* starting and max health */
+  r: 12,            /* contact radius */
+  speed: 168,       /* movement, px/s, before Swiftness */
+  iframe: 0.55,     /* invulnerability after a hit, s */
+  pickup: 135,      /* mana orb magnet radius, before Attunement */
+  xpFirst: 11       /* XP needed for level 2 (later levels: see gainXp) */
+};
+
+/* ==== js/core/events.js ==== */
+/* A tiny synchronous event bus. Game systems announce what changed; the UI listens and redraws.
+   Used only for game -> UI notifications:
+     'spells:changed'     a magic was gained, levelled or given a talent  (HUD pips)
+     'artifacts:changed'  an artifact was gained or ranked up             (HUD slots)
+     'choice:open'  job   a level-up / talent / relic choice is waiting   (choice screen)
+     'run:over'     rec   the conjurer died                               (game-over screen) */
+
+const listeners = {};
+function on(name, fn){ (listeners[name] || (listeners[name] = [])).push(fn); }
+function emit(name, data){
+  const list = listeners[name];
+  if(list) for(const fn of list) fn(data);
+}
+
+/* ==== js/core/input.js ==== */
+/* Keyboard + touch/mouse drag stick. Produces one movement vector per frame (inputVec). */
+
+
+
+let keys = {};
+const joy = {active:false, id:null, ox:0, oy:0, x:0, y:0};
+
+/* drop held keys (used when a choice screen opens, so a held key cannot leak into it) */
+function clearKeys(){ keys = {}; }
+
+function inputVec(){
+  let dx=0,dy=0;
+  if(keys['w']||keys['arrowup']) dy-=1;
+  if(keys['s']||keys['arrowdown']) dy+=1;
+  if(keys['a']||keys['arrowleft']) dx-=1;
+  if(keys['d']||keys['arrowright']) dx+=1;
+  if(joy.active){
+    const jx = joy.x-joy.ox, jy = joy.y-joy.oy;
+    const m = Math.hypot(jx,jy);
+    if(m>6){ const s=Math.min(m,58)/58; dx += jx/m*s; dy += jy/m*s; }
+  }
+  const m = Math.hypot(dx,dy);
+  if(m>1){dx/=m;dy/=m;}
+  return {x:dx,y:dy};
+}
+
+/* onPause: called for Esc / P */
+function initInput(onPause){
+  window.addEventListener('keydown', e=>{
+    const k = e.key.toLowerCase();
+    if(S.choiceOpen){            /* movement keys never reach a card, or the player */
+      if(k!=='tab') e.preventDefault();
+      return;
+    }
+    keys[k]=true;
+    if(k==='escape'||k==='p') onPause();
+    if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+  });
+  window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
+  window.addEventListener('blur', ()=>{ keys={}; joy.active=false; });
+
+  cvs.addEventListener('pointerdown', e=>{
+    if(!S.running || S.paused) return;
+    if(e.pointerType==='mouse' && e.button!==0) return;
+    joy.active=true; joy.id=e.pointerId;
+    const r = cvs.getBoundingClientRect();
+    joy.ox = joy.x = e.clientX-r.left; joy.oy = joy.y = e.clientY-r.top;
+    cvs.setPointerCapture(e.pointerId);
+  });
+  cvs.addEventListener('pointermove', e=>{
+    if(!joy.active || e.pointerId!==joy.id) return;
+    const r = cvs.getBoundingClientRect();
+    joy.x = e.clientX-r.left; joy.y = e.clientY-r.top;
+  });
+  const endJoy = e=>{ if(e.pointerId===joy.id){ joy.active=false; joy.id=null; } };
+  cvs.addEventListener('pointerup', endJoy);
+  cvs.addEventListener('pointercancel', endJoy);
+}
+
+/* ==== js/data/artifacts.js ==== */
+/* ============================ artifacts ============================
+   Eight slots. NEW artifacts come only from relics (start, bosses, one elite per wave): choice of three.
+   Ranks in artifacts you already hold can also turn up on ordinary level-ups.
+   A relic bound to a magic you do not own (`req`) is never offered.
+
+   What each general artifact does is applied in js/game/modifiers.js (computeMods);
+   spell-bound artifacts are applied inside their spell's modify() in js/spells/<spell>.js.
+   Order matters: it is the order of the HUD slots and of the relic roll. */
+
+const ARTIFACT_DEFS = {
+  /* --- general --- */
+  power:    {name:'Sigil of Wrath',    icon:'power',     max:8, trait:'Focused Power', txt:'<em>+12% damage</em> from every magic you own.'},
+  vitality: {name:'Heartstone',        icon:'vitality',  max:8, trait:'Vitality',      txt:'<em>+9 max health</em>, and heal for the same amount now.'},
+  magnitude:{name:'Widening Lens',     icon:'magnitude', max:6, trait:'Magnitude',     txt:'<em>+10% magic size</em> — radii, pools, gales, spheres.'},
+  multicast:{name:'Split Prism',       icon:'multicast', max:3, trait:'Multicast',     txt:'<em>+1 to the count of every magic.</em> One more bolt, one more pool, one more cyclone.'},
+  duration: {name:'Hourglass Shard',   icon:'duration',  max:5, trait:'Persistence',   txt:'<em>+15% duration</em> for everything your magic leaves on the field.'},
+  haste:    {name:'Quicksilver Vial',  icon:'haste',     max:6, trait:'Haste',         txt:'<em>−8% cooldown</em> on every magic.'},
+  swift:    {name:'Feathered Sole',    icon:'swift',     max:5, trait:'Swiftness',     txt:'<em>+8% movement speed</em>.'},
+  attune:   {name:'Lodestone',         icon:'attune',    max:5, trait:'Attunement',    txt:'<em>+35% mana pickup range</em> and <em>+8% experience</em>.'},
+  ward:     {name:'Obsidian Ward',     icon:'ward',      max:5, trait:'Warding',       txt:'<em>−8% damage taken</em>.'},
+  regrowth: {name:'Verdant Root',      icon:'regrowth',  max:5, trait:'Regrowth',      txt:'<em>Regenerate 0.28 health per second.</em>'},
+  execlens: {name:"Executioner's Lens",icon:'execlens',  max:4, trait:'Cruelty',       txt:'<em>+25% damage</em> to anything already below <em>30% health</em>.'},
+  blood:    {name:'Bloodgroove',       icon:'blood',     max:4, trait:'Sanguine',      txt:'Every shape you break <em>restores 0.2 health</em>.'},
+
+  /* --- bound to Fireball --- */
+  emberglass:{name:'Emberglass',    icon:'fireball', req:'fireball', max:2, trait:'Fireball',
+             txt:'<em>+1 fireball</em> per cast, and every detonation is <em>15% wider</em>.'},
+  cinderheart:{name:'Cinder Heart', icon:'fireball', req:'fireball', max:3, trait:'Fireball',
+             txt:'Fireball\'s <em>burn is 40% stronger</em>.'},
+
+  /* --- bound to Ice Wave --- */
+  rimelens:{name:'Rime Lens',       icon:'icewave', req:'icewave', max:3, trait:'Ice Wave',
+             txt:'Ice Wave reaches <em>18% farther</em>, and every ice slow deepens by <em>5%</em>.'},
+  shatterpoint:{name:'Shatterpoint',icon:'icewave', req:'icewave', max:3, trait:'Ice Wave',
+             txt:'Anything <em>slowed</em> takes <em>+25% damage</em> from every source.'},
+
+  /* --- bound to Ray of Light --- */
+  refractor:{name:'Refractor',      icon:'lightray', req:'lightray', max:3, trait:'Ray of Light',
+             txt:'<em>+1 ray</em> every time the light goes out.'},
+  solarfocus:{name:'Solar Focus',   icon:'lightray', req:'lightray', max:3, trait:'Ray of Light',
+             txt:'Rays are <em>30% wider</em> and hit for <em>+15%</em>.'},
+
+  /* --- bound to Dark Orbs --- */
+  impwarden:{name:'Orb Warden',     icon:'imps', req:'imps', max:3, trait:'Dark Orbs',
+             txt:'<em>+1 orb</em> with every summoning.'},
+  blacksigil:{name:'Black Sigil',   icon:'imps', req:'imps', max:3, trait:'Dark Orbs',
+             txt:'Orbs last <em>1s longer</em> and <em>home 40% harder</em>.'}
+};
+const ARTIFACT_KEYS = Object.keys(ARTIFACT_DEFS);
+
+/* ==== js/game/modifiers.js ==== */
+/* Turns the artifacts you hold into the modifier table S.mods that every system reads. */
+
+
+
+/* rank of an artifact (0 = not held) */
+const A = k => S.passives[k]||0;
+const heldArtifacts = () => ARTIFACT_KEYS.filter(k => (S.passives[k]||0) > 0);
+
+function computeMods(){
+  const g = A;
+  S.mods = {
+    dmg:    1 + 0.12*g('power'),
+    area:   1 + 0.10*g('magnitude'),
+    dur:    1 + 0.15*g('duration'),
+    cd:     Math.pow(0.92, g('haste')),
+    count:  g('multicast'),
+    speed:  1 + 0.08*g('swift'),
+    pickup: 1 + 0.35*g('attune'),
+    xp:     1 + 0.08*g('attune'),
+    dr:     Math.pow(0.92, g('ward')),
+    regen:  0.28*g('regrowth'),
+    exec:   1 + 0.25*g('execlens'),
+    lifesteal: 0.2*g('blood'),
+    burn:   1 + 0.40*g('cinderheart'),   /* fire burns harder */
+    rimeSlow: 0.05*g('rimelens'),        /* ice slows deeper */
+    chill:  0.25*g('shatterpoint')       /* slowed shapes take more */
+  };
+}
+
+/* ==== js/game/progression.js ==== */
+/* Levelling and loot: the queue of pending choices (level-ups, talents, relics), what each
+   choice offers, and applying the pick. The choice screen itself is js/ui/choices.js. */
+
+
+
+
+
+
+
+
+function addSpell(key){
+  S.spells[key] = {lv:1, cd:0, t7:null, t15:null, cast:0};
+}
+
+/* S.queue holds jobs: {kind:'startspell'|'levelup'|'talent'|'artifact', ...}.
+   Opening one pauses the run until the UI calls back with a pick (then closeChoice in the UI). */
+function openChoice(){
+  const job = S.queue.shift();
+  if(!job){ S.choiceOpen=false; S.paused=false; return; }
+  S.choiceOpen = true; S.paused = true;
+  clearKeys();                     /* drop keys held at the moment of the pause */
+  emit('choice:open', job);
+}
+
+function drawWeighted(pool, n){
+  const out = [];
+  for(let i=0;i<n && pool.length;i++){
+    let tot = 0; for(const o of pool) tot+=o.w;
+    let r = Math.random()*tot, idx = pool.length-1;
+    for(let j=0;j<pool.length;j++){ r -= pool[j].w; if(r<=0){ idx=j; break; } }
+    out.push(pool.splice(idx,1)[0]);
+  }
+  return out;
+}
+
+/* Level-ups offer MAGIC, heavily biased toward what you already carry,
+   plus ranks in artifacts already in your slots. New artifacts come from relics only. */
+function rollOptions(n){
+  const pool = [];
+  const owned = Object.keys(S.spells);
+  for(const k of owned){
+    const sp = S.spells[k]; if(sp.lv>=15) continue;
+    const nx = sp.lv+1;
+    const milestone = (nx===7 || nx===15);
+    pool.push({type:'spell', key:k, w: milestone ? 34 : 24});   /* what you own dominates the roll */
+  }
+  if(owned.length < MAGIC_SLOTS)
+    for(const k of SPELL_KEYS) if(!S.spells[k]) pool.push({type:'newspell', key:k, w:7});
+  for(const k of heldArtifacts()){
+    if(S.passives[k] >= ARTIFACT_DEFS[k].max) continue;
+    pool.push({type:'passive', key:k, w: k==='multicast' ? 6 : 9});
+  }
+  const out = drawWeighted(pool, n);
+  if(!out.length) out.push({type:'heal'});
+  return out;
+}
+
+/* Relic: three artifacts. Relics bound to magic you do not own never appear. */
+function rollArtifacts(n){
+  const pool = [];
+  const used = heldArtifacts().length;
+  for(const k of ARTIFACT_KEYS){
+    const d = ARTIFACT_DEFS[k], lv = S.passives[k]||0;
+    if(lv >= d.max) continue;
+    if(d.req && !S.spells[d.req]) continue;
+    if(lv === 0 && used >= ARTIFACT_SLOTS) continue;   /* board full — deepen what you hold */
+    pool.push({type:'passive', key:k, w: lv===0 ? (d.req ? 17 : 11) : 8});
+  }
+  const out = drawWeighted(pool, n);
+  if(!out.length) out.push({type:'heal'});
+  return out;
+}
+
+function applyOption(o){
+  if(o.type==='newspell'){ addSpell(o.key); emit('spells:changed'); }
+  else if(o.type==='spell'){
+    const sp = S.spells[o.key];
+    sp.lv++;
+    if(sp.lv===7) S.queue.unshift({kind:'talent', key:o.key, tier:7});
+    if(sp.lv===15) S.queue.unshift({kind:'talent', key:o.key, tier:15});
+    emit('spells:changed');
+  }
+  else if(o.type==='passive'){
+    S.passives[o.key] = (S.passives[o.key]||0)+1;
+    computeMods();
+    if(o.key==='vitality'){ S.player.maxHp += 9; S.player.hp = Math.min(S.player.maxHp, S.player.hp+9); }
+    emit('artifacts:changed');
+  }
+  else if(o.type==='heal'){ S.player.hp = Math.min(S.player.maxHp, S.player.hp + S.player.maxHp*0.4); }
+}
+
+/* the first choice of a run: your starting magic, which also colours your core */
+function chooseStartSpell(key){
+  addSpell(key); S.player.core = key; emit('spells:changed');
+}
+
+/* tier 7 takes one of three talents; tier 15 one of the two left */
+function chooseTalent(key, tier, id){
+  const sp = S.spells[key];
+  if(tier===7) sp.t7 = id; else sp.t15 = id;
+  emit('spells:changed');
+}
+
+/* ==== js/game/pickups.js ==== */
+/* Mana orbs (XP): dropped by kills, magnetised toward the player, and turned into levels. */
+
+
+
+
+
+const ORB_VAL = [1,5,22];   /* XP of the three orb tiers (colours: render/world.js) */
+
+function dropOrb(x,y,t,scale){
+  if(S.orbs.length > 700) return;
+  S.orbs.push({x,y,t, v: ORB_VAL[t]*(scale||1), vx:rnd(50,-50), vy:rnd(50,-50), mag:false, ph:rnd(TAU)});
+}
+
+function updateOrbs(dt){
+  const p = S.player;
+  const pr = PLAYER.pickup * S.mods.pickup;
+  for(let i=S.orbs.length-1;i>=0;i--){
+    const o = S.orbs[i];
+    o.ph += dt*3;
+    const d2 = dist2(o.x,o.y,p.x,p.y);
+    if(!o.mag && d2 < pr*pr) o.mag = true;
+    if(o.mag){
+      const a = Math.atan2(p.y-o.y, p.x-o.x);
+      const sp = 260 + (1 - Math.min(1, Math.sqrt(d2)/pr))*420;
+      o.x += Math.cos(a)*sp*dt; o.y += Math.sin(a)*sp*dt;
+    } else {
+      o.x += o.vx*dt; o.y += o.vy*dt; o.vx*=0.9; o.vy*=0.9;
+    }
+    if(d2 < 20*20){ gainXp(o.v); S.orbs.splice(i,1); }
+  }
+}
+
+function gainXp(v){
+  const p = S.player;
+  p.xp += v * S.mods.xp;
+  while(p.xp >= p.xpNext){
+    p.xp -= p.xpNext;
+    p.level++;
+    p.xpNext = Math.floor(8 + p.level*4.6 + p.level*p.level*0.55);
+    S.queue.push({kind:'levelup'});
+  }
+  if(S.queue.length && !S.choiceOpen) openChoice();
+}
+
+/* ==== js/game/combat.js ==== */
+/* All damage goes through dealDamage. Also: element effects, kills and their rewards,
+   area hits, beams, and the deferred electric death explosions. */
+
+
+
+
+
+
+
+
+/* ---- elements: put a status on a shape that survived the hit ---- */
+function applyElement(e, el, dmg){
+  if(e.dead || !el) return;
+  const boss = e.boss;
+  switch(el){
+    case 'fire':{
+      const dps = dmg*EL.burnPct*S.mods.burn/EL.burnDur;
+      e.burnDmg = e.burnT>0 ? Math.max(e.burnDmg, dps) : dps;
+      e.burnT = EL.burnDur;
+      break;
+    }
+    case 'ice':
+      e.slow = Math.max(e.slow, (EL.slow + S.mods.rimeSlow)*(boss?0.5:1));
+      e.slowT = Math.max(e.slowT, EL.slowDur);
+      break;
+    case 'light':    e.blindT = EL.blindDur; break;
+    case 'dark':     if(!boss) e.fearT = EL.fearDur; break;
+    case 'water':    e.soakT = EL.soakDur; break;
+    case 'electric': e.shockT = EL.shockDur; break;
+    case 'wind':     if(!boss){ if(!(e.windT>0)) e.windA = rnd(TAU); e.windT = EL.windDur; } break;
+    case 'earth':    if(!boss) e.rootT = EL.rootDur; break;
+  }
+}
+
+/* contamination: 30% of the hit again as poison over 5s */
+function contaminate(e, dmg){ e.toxT = 5; e.toxDmg = dmg*0.3/10; }
+
+/* opt: {color, el, big} — el applies that element if the shape survives */
+function dealDamage(e, amount, opt){
+  if(e.dead) return;
+  let m = 1;
+  if(e.slow>0 && S.mods.chill) m *= 1 + S.mods.chill;   /* Shatterpoint */
+  if(e.soakT>0) m *= 1 + EL.soak;                         /* water */
+  if(e.hp/e.maxHp < 0.30) m *= S.mods.exec;
+  const amt = amount * m;
+  e.hp -= amt;
+  e.flash = 0.13;
+  if(S.nums.length < 90) S.nums.push({x:e.x+rnd(9,-9), y:e.y-e.r-3, v:-34, t:0.62, txt:Math.round(amt), c:(opt&&opt.color)||'#e9e5da', big:!!(opt&&opt.big)});
+  if(e.hp<=0) killEnemy(e, opt);
+  else if(opt && opt.el) applyElement(e, opt.el, amount);
+}
+
+function killEnemy(e, opt){
+  if(e.dead) return;
+  e.dead = true;
+  S.kills++;
+  burst(e.x,e.y, e.accent, e.boss?70:7, e.boss?4:1.6);
+  if(S.mods.lifesteal){ const p = S.player; p.hp = Math.min(p.maxHp, p.hp + S.mods.lifesteal); }
+
+  /* electric: a marked shape explodes — queued, resolved in processBlasts */
+  if(e.shockT>0){ e.shockT = 0; S.blasts.push({x:e.x, y:e.y, R:EL.shockR*S.mods.area, dmg:e.maxHp*EL.shockPct}); }
+
+  /* mana orbs */
+  if(e.boss){
+    for(let i=0;i<16;i++) dropOrb(e.x+rnd(70,-70), e.y+rnd(70,-70), 2);
+    for(let i=0;i<6;i++) dropOrb(e.x+rnd(40,-40), e.y+rnd(40,-40), 1);
+    S.shake = Math.max(S.shake, 22);
+    onBossDead();
+  } else {
+    const r = Math.random();
+    const t = r < 0.02 ? 2 : r < 0.18 ? 1 : 0;
+    dropOrb(e.x, e.y, t, e.xp);
+    if(e.relic){
+      for(let i=0;i<24;i++) burst(e.x,e.y,'#ffd166',1,2);
+      ring(e.x,e.y,70,'#ffd166');
+      S.queue.push({kind:'artifact', elite:true});
+      if(!S.choiceOpen) openChoice();
+    }
+  }
+}
+
+function onBossDead(){
+  const cleared = S.wave;
+  S.bossActive=false; S.boss=null;
+  S.wave++; S.waveTime=0; S.eliteRelic=false;   /* next wave's first elite carries a relic */
+  const p = S.player;
+  p.hp = Math.min(p.maxHp, p.hp + p.maxHp*0.25);
+  /* the field empties itself into you: every orb still lying around comes home */
+  let pulled = 0;
+  for(const o of S.orbs){ if(!o.mag){ o.mag = true; pulled++; } }
+  ring(p.x, p.y, 300, '#5ad2f4');
+  ring(p.x, p.y, 210, '#ffd166');
+  S.nums.push({x:p.x, y:p.y-46, v:-26, t:1.5, txt:`MAGNET  ${pulled} orbs`, c:'#5ad2f4', big:true});
+  /* every boss drops a relic — choice of three artifacts */
+  S.queue.unshift({kind:'artifact', wave:cleared});
+  if(!S.choiceOpen) openChoice();
+}
+
+/* hit everything within R of (x,y); the list is collected first so kills inside cannot disturb it */
+function hitArea(x, y, R, dmg, opt, each){
+  const list = gridQuery(x, y, R+20).filter(e => !e.dead && dist2(e.x,e.y,x,y) < (R + e.r*0.5)**2);
+  for(const e of list){ dealDamage(e, dmg, opt); if(each && !e.dead) each(e); }
+  return list.length;
+}
+
+/* damage everything inside a segment of width w running from (x,y) along angle a */
+function beamHit(x,y,a,reach,w,dmg,color,seen,el){
+  const cx = Math.cos(a), cy = Math.sin(a);
+  const step = 90, half = w*0.5 + 14;
+  for(let d=Math.min(40, reach*0.5); d<=reach+45; d+=step){   /* short bounce segments still get sampled */
+    const px = x+cx*d, py = y+cy*d;
+    for(const e of gridQuery(px,py,step*0.62+half)){
+      if(e.dead || (seen && seen.has(e))) continue;
+      /* perpendicular distance to the beam line, forward of the origin only */
+      const rx = e.x-x, ry = e.y-y;
+      const along = rx*cx + ry*cy;
+      if(along < 0 || along > reach) continue;
+      const perp = Math.abs(rx*cy - ry*cx);
+      if(perp > half + e.r*0.6) continue;
+      if(seen) seen.add(e);
+      dealDamage(e, dmg, {color, el});
+    }
+  }
+}
+
+/* electric deaths are queued and resolved after everything else, so a chain of them never
+   runs inside another sweep; each blast clears its own mark, so the chain always ends */
+function processBlasts(){
+  let guard = 0;
+  while(S.blasts.length && guard++ < 300){
+    const b = S.blasts.shift();
+    ring(b.x, b.y, b.R, ELEMENTS.electric.color);
+    burst(b.x, b.y, '#c4bdff', 8, 1.2);
+    hitArea(b.x, b.y, b.R, b.dmg, {color:ELEMENTS.electric.color});
+  }
+  S.blasts.length = 0;
+}
+
+/* ==== js/spells/shared.js ==== */
+/* Building blocks several spells use: lingering damage zones, expanding rings,
+   and things that fall from the sky. Each one is a shot or zone type with its own step and draw. */
+
+
+
+
+
+
+/* ---- lingering ground: Molotov, Chaos, Rumble, contaminated puddles ---- */
+const DOT_LOOK = {
+  fire:  {c:'#ff8c42'},
+  chaos: {c:'#a86bd8'},
+  mire:  {c:'#a0703c'},
+  water: {c:'#2f8fe0'}
+};
+/* `total` damage spread over `dur` seconds to everything inside */
+function dotZone(x, y, r, total, dur, look, extra){
+  S.zones.push(Object.assign({type:'dot', x, y, r, life:dur, max:dur, tick: total/Math.max(1, dur/0.5), rate:0.5, acc:0, look}, extra||{}));
+}
+
+/* ---- an expanding ring that hits each shape once as it passes (Ice Wave, Supernova, rogue waves) ---- */
+function surge(o){
+  S.zones.push(Object.assign({type:'surge', r:8, band:20, wait:0, hit:new Set(), edge:0}, o));
+}
+
+/* ---- something dropping out of the sky above the screen onto (tx,ty); onLand runs at impact ----
+   `kind` picks the look (a spell registers it under `falls`). */
+function skyFall(kind, tx, ty, delay, r, color, onLand){
+  const fall = 0.55 + delay;
+  const sx = tx - view.h*0.38*(Math.random()<0.5?1:-1), sy = S.cam.y - view.h/2 - 90;   /* above the top edge */
+  S.shots.push({type:'fall', kind, x:sx, y:sy, vx:(tx-sx)/fall, vy:(ty-sy)/fall, tx, ty, fall, life:fall, r, color, onLand, spin:rnd(TAU)});
+}
+
+/* Meteor Shower / Rainfall: a target mark on the ground that tightens as it comes down */
+function drawFallMark(s, color){
+  const k = clamp(1 - s.life/s.fall, 0, 1), R = s.r*6;
+  ctx.save();
+  ctx.globalAlpha = 0.25 + 0.45*k; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.ellipse(s.tx, s.ty, R*(1.1-0.5*k), R*(1.1-0.5*k)*0.45, 0, 0, TAU); ctx.stroke();
+  ctx.globalAlpha = 0.18*k; ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.ellipse(s.tx, s.ty, s.r*2.4*(0.4+k), s.r*1.1*(0.4+k), 0, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
+/* shot types: step(s, dt) -> true when spent; expire(s) at end of life -> true to keep flying */
+const SHARED_SHOTS = {
+  fall: {
+    step(s, dt){ s.x += s.vx*dt; s.y += s.vy*dt; s.spin += dt*9; return false; },
+    expire(s){ s.onLand(s.tx, s.ty); return false; }
+    /* draw: by s.kind, from the spells' `falls` */
+  }
+};
+
+/* zone types: step(z, dt, player) -> true when finished; layer 'under' (beneath enemies) or 'over' */
+const SHARED_ZONES = {
+  dot: {
+    layer:'under',
+    step(z, dt){
+      z.life -= dt; z.acc += dt;
+      if(z.acc >= z.rate){
+        z.acc = 0;
+        for(const e of gridQuery(z.x,z.y,z.r+20).filter(e => !e.dead && dist2(e.x,e.y,z.x,z.y) < z.r*z.r)){
+          dealDamage(e, z.tick, {color:DOT_LOOK[z.look].c});
+          if(z.slow && !e.dead){ e.slow = Math.max(e.slow, z.slow); e.slowT = Math.max(e.slowT, 0.6); }
+        }
+      }
+      return z.life <= 0;
+    },
+    draw(z){
+      const a = clamp(z.life/z.max,0,1), c = DOT_LOOK[z.look].c;
+      ctx.save();
+      const g = ctx.createRadialGradient(z.x,z.y,z.r*0.15,z.x,z.y,z.r);
+      g.addColorStop(0, hexA(c, 0.26*a)); g.addColorStop(1, hexA(c, 0.06*a));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(z.x,z.y,z.r,0,TAU); ctx.fill();
+      ctx.globalAlpha = 0.5*a; ctx.strokeStyle = c; ctx.lineWidth = 1.3;
+      ctx.setLineDash([6,8]); ctx.lineDashOffset = -S.t*12;
+      ctx.beginPath(); ctx.arc(z.x,z.y,z.r,0,TAU); ctx.stroke();
+      ctx.setLineDash([]);
+      if(z.look==='fire'){   /* licking flames */
+        ctx.globalAlpha = 0.5*a; ctx.fillStyle = '#ffce6a';
+        for(let i=0;i<7;i++){
+          const ph = S.t*2.2 + i*1.7 + z.x*0.01;
+          const rr = z.r*(0.4 + 0.55*((ph*0.5)%1)), aa = i*TAU/7 + Math.sin(ph)*0.25;
+          ctx.beginPath(); ctx.arc(z.x+Math.cos(aa)*rr, z.y+Math.sin(aa)*rr, 3.2*(1-((ph*0.5)%1)), 0, TAU); ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+  },
+
+  surge: {
+    layer:'over',
+    step(z, dt, p){
+      if(z.wait > 0){ z.wait -= dt; if(z.follow){ z.x = p.x; z.y = p.y; } return false; }
+      if(z.follow){ z.x = p.x; z.y = p.y; }
+      z.r += z.speed*dt;
+      for(const e of gridQuery(z.x,z.y,z.r+z.band+20)){
+        if(e.dead || z.hit.has(e)) continue;
+        const d = Math.hypot(e.x-z.x, e.y-z.y);
+        if(d > z.r + e.r || d < z.r - z.band - e.r) continue;
+        z.hit.add(e);
+        dealDamage(e, z.dmg*(1 + z.edge*clamp(d/z.maxR,0,1)), {color:z.color, el:z.el});
+        if(z.contam && !e.dead) contaminate(e, z.dmg);
+      }
+      return z.r >= z.maxR;
+    },
+    draw(z){
+      if(z.wait > 0) return;
+      const a = clamp(1 - z.r/z.maxR, 0, 1);
+      ctx.save();
+      ctx.strokeStyle = z.color;
+      for(let k=0;k<3;k++){
+        ctx.lineWidth = 3.6 - k*1.1;
+        ctx.globalAlpha = (0.30 + 0.6*a) * (1 - k*0.3);
+        ctx.beginPath(); ctx.arc(z.x, z.y, Math.max(2, z.r - k*7), 0, TAU); ctx.stroke();
+      }
+      if(z.el==='ice'){   /* frost shards riding the ring */
+        ctx.globalAlpha = 0.5*a + 0.2; ctx.fillStyle = '#d8f4ff';
+        for(let i=0;i<10;i++){
+          const aa = i*TAU/10 + S.t*0.6;
+          ctx.save();
+          ctx.translate(z.x+Math.cos(aa)*z.r, z.y+Math.sin(aa)*z.r);
+          ctx.rotate(aa);
+          ctx.fillRect(-3.4,-1.1, 6.8, 2.2);
+          ctx.restore();
+        }
+      }
+      ctx.restore();
+    }
+  }
+};
+
+/* ==== js/game/targeting.js ==== */
+/* Finding things to hit: nearest enemy, densest clusters, what is on screen, rays to the screen edge. */
+
+
+
+
+
+function nearestEnemy(x,y,maxR,exclude){
+  let best=null, bd = (maxR||1e9)**2;
+  const list = maxR ? gridQuery(x,y,maxR) : S.enemies;
+  for(let i=0;i<list.length;i++){
+    const e = list[i];
+    if(e.dead || (exclude && exclude.has(e))) continue;
+    const d = dist2(x,y,e.x,e.y);
+    if(d<bd){bd=d;best=e;}
+  }
+  return best;
+}
+
+/* densest pockets of the horde near (x,y), biggest first — one centroid per coarse cell */
+function clusterTargets(x,y,n){
+  const C = 160, R = Math.max(view.w,view.h)*0.6, cells = new Map();
+  for(const e of S.enemies){
+    if(e.dead || Math.abs(e.x-x) > R || Math.abs(e.y-y) > R) continue;
+    const k = Math.floor(e.x/C)*100003 + Math.floor(e.y/C);
+    let c = cells.get(k); if(!c){ c = {n:0,sx:0,sy:0}; cells.set(k,c); }
+    c.n++; c.sx += e.x; c.sy += e.y;
+  }
+  return [...cells.values()].sort((a,b)=>b.n-a.n).slice(0,n).map(c=>({x:c.sx/c.n, y:c.sy/c.n}));
+}
+
+const onScreen = (e, pad=0) => Math.abs(e.x-S.cam.x) < view.w/2+pad && Math.abs(e.y-S.cam.y) < view.h/2+pad;
+
+/* up to n on-screen shapes nearest the player, each at least `sep` from the ones already chosen */
+function nearestN(n, sep){
+  const p = S.player, list = [];
+  for(const e of gridQuery(p.x, p.y, Math.max(view.w,view.h)*0.6)) if(!e.dead && onScreen(e)) list.push(e);
+  list.sort((a,b) => dist2(a.x,a.y,p.x,p.y) - dist2(b.x,b.y,p.x,p.y));
+  const out = [];
+  for(const e of list){
+    if(out.length >= n) break;
+    if(out.every(o => dist2(o.x,o.y,e.x,e.y) > sep*sep)) out.push(e);
+  }
+  return out;
+}
+
+/* cluster targets for n falling things, jittered when there are fewer clusters than drops */
+function fallTargets(n){
+  const p = S.player, tg = clusterTargets(p.x, p.y, n);
+  const out = [];
+  for(let i=0;i<n && tg.length;i++){
+    const t = tg[i % tg.length], rep = i >= tg.length;
+    out.push({x: t.x + (rep?rnd(45,-45):0), y: t.y + (rep?rnd(45,-45):0)});
+  }
+  return out;
+}
+
+/* Trace a ray to the edge of the visible screen and reflect it there
+   (angle in = angle out: a vertical wall flips x, a horizontal wall flips y). */
+function raySegments(x,y,a,bounces){
+  const L = S.cam.x-view.w/2, R = S.cam.x+view.w/2, T = S.cam.y-view.h/2, B = S.cam.y+view.h/2;
+  let dx = Math.cos(a), dy = Math.sin(a);
+  const segs = [];
+  for(let k=0;k<=bounces;k++){
+    const tx = dx > 1e-9 ? (R-x)/dx : dx < -1e-9 ? (L-x)/dx : Infinity;
+    const ty = dy > 1e-9 ? (B-y)/dy : dy < -1e-9 ? (T-y)/dy : Infinity;
+    const t = Math.max(0, Math.min(tx,ty));
+    segs.push({x, y, a:Math.atan2(dy,dx), len:t});
+    x += dx*t; y += dy*t;
+    if(tx <= ty) dx = -dx;
+    if(ty <= tx) dy = -dy;
+  }
+  return segs;
+}
+/* a ray across the whole screen: from the edge behind the player, through the player, to the far edge */
+function screenRay(x, y, a, bounces){
+  const back = raySegments(x, y, a+Math.PI, 0)[0];
+  const sx = x + Math.cos(a+Math.PI)*back.len, sy = y + Math.sin(a+Math.PI)*back.len;
+  return raySegments(sx, sy, a, bounces);
+}
+
+/* ==== js/render/shapes.js ==== */
+/* Path builders for the geometric look (call fill/stroke afterwards). */
+
+
+function polyPath(c,x,y,r,n,rot){
+  c.beginPath();
+  for(let i=0;i<n;i++){
+    const a = rot + i*TAU/n - Math.PI/2;
+    const px = x+Math.cos(a)*r, py = y+Math.sin(a)*r;
+    i ? c.lineTo(px,py) : c.moveTo(px,py);
+  }
+  c.closePath();
+}
+function starPath(c,x,y,R,ri,n,rot){
+  c.beginPath();
+  for(let i=0;i<n*2;i++){
+    const r = (i%2) ? ri : R;
+    const a = rot + i*Math.PI/n - Math.PI/2;
+    const px = x+Math.cos(a)*r, py = y+Math.sin(a)*r;
+    i ? c.lineTo(px,py) : c.moveTo(px,py);
+  }
+  c.closePath();
+}
+function circPath(c,x,y,r){ c.beginPath(); c.arc(x,y,r,0,TAU); }
+
+/* ==== js/spells/fireball.js ==== */
+/* ==== Fireball (fire) ====
+   A projectile that bursts in a small blast on the first shape it meets.
+   Talents: Molotov, Frenzy, Meteor Shower (evolve). */
+
+
+
+
+
+
+
+
+
+
+
+function fireballBlast(st, x, y, dmg, R, meteor){
+  ring(x, y, R, st.color);
+  burst(x, y, st.color, meteor?24:10, meteor?2:1.1);
+  hitArea(x, y, R, dmg, {color:st.color, el:'fire', big:meteor});
+  if(st.molotov) dotZone(x, y, R*1.5, dmg*0.35, 5*S.mods.dur, 'fire');
+}
+
+function castFireball(st){
+  const p = S.player, dmg = st.dmg*st.dmgMult;
+  if(st.meteor){
+    fallTargets(st.count).forEach((t,i) => skyFall('meteor', t.x, t.y, i*0.09, st.size*2.6, st.color, (x,y)=>{
+      fireballBlast(st, x, y, dmg, st.radius, true);
+      S.shake = Math.max(S.shake, 9);
+      burst(x, y, '#5a4636', 14, 1.6);
+      S.zones.push({type:'crater', x, y, r:st.radius*0.55, life:1.6, max:1.6});
+    }));
+    return;
+  }
+  const tgt = nearestEnemy(p.x,p.y,900);
+  const base = tgt ? Math.atan2(tgt.y-p.y,tgt.x-p.x) : Math.atan2(p.dir.y,p.dir.x);
+  for(let i=0;i<st.count;i++){
+    const a = tgt ? fanAngle(base, i, 0.17) : base + rnd(0.45,-0.45);
+    S.shots.push({type:'fireball', x:p.x, y:p.y, vx:Math.cos(a)*st.speed, vy:Math.sin(a)*st.speed,
+      st, dmg, r:st.size, R:st.radius, life:2.4, pierce:st.pierce, hits:0, hit:new Set(), spin:rnd(TAU)});
+  }
+}
+
+/* a fireball in flight — and, with a much longer tail, a falling meteor */
+function drawFireball(s){
+  const a = Math.atan2(s.vy,s.vx), meteor = s.type==='fall';
+  if(meteor) drawFallMark(s, '#ff6b35');
+  ctx.save();
+  ctx.translate(s.x,s.y);
+  /* trailing flame — a meteor drags a much longer tail */
+  ctx.save(); ctx.rotate(a);
+  ctx.globalAlpha = 0.28; ctx.fillStyle = '#ff6b35';
+  ctx.beginPath();
+  ctx.moveTo(-s.r*(meteor?11:6.5), 0); ctx.lineTo(0, -s.r*1.15); ctx.lineTo(0, s.r*1.15);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.globalAlpha = 0.34; ctx.fillStyle = '#ff8c42';
+  ctx.beginPath(); ctx.arc(0,0,s.r*2.5,0,TAU); ctx.fill();
+  const g = ctx.createRadialGradient(-s.r*0.3,-s.r*0.3,s.r*0.15, 0,0,s.r);
+  g.addColorStop(0,'#fff3cf'); g.addColorStop(0.5,'#ffc247'); g.addColorStop(1,'#e8461f');
+  ctx.globalAlpha = 1; ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0,0,s.r,0,TAU); ctx.fill();
+  ctx.globalAlpha = 0.7; ctx.strokeStyle = '#ffd98a'; ctx.lineWidth = 1;
+  starPath(ctx, 0, 0, s.r*1.5, s.r*0.95, 6, s.spin); ctx.stroke();
+  ctx.restore();
+}
+
+const fireball = {
+  key:'fireball',
+  name:'Fireball', el:'fire', color:'#ff6b35', kind:'Projectile · Fire',
+  blurb:'A sphere of flame that bursts in a small blast on the first shape it meets and sets it alight.',
+  base:{cd:2, dmg:24, count:1, radius:32, pierce:0},
+  levels:[
+    {at:[2,6,10], stat:'count',  add:1},
+    {at:[3,7,11], stat:'dmg',    mul:1.3},
+    {at:[4,8,12], stat:'cd',     mul:0.8},
+    {at:[5,13],   stat:'radius', mul:1.3},
+    {at:[9,14],   stat:'pierce', add:1}
+  ],
+  t7:[
+    {id:'molotov', name:'Molotov', txt:'Every impact — pierces included — leaves a <em>burning zone</em> 1.5× the blast that deals <em>35% over 5s</em>.'},
+    {id:'frenzy',  name:'Frenzy',  txt:'<em>+30%</em> damage, pierce and blast, and <em>+3 fireballs</em> every cast.'}
+  ],
+  evolve:{name:'Meteor Shower', txt:'You stop throwing fire and <em>call meteors</em> down from the sky onto the <em>biggest clusters</em> — <em>2× blast</em>, <em>+40% damage</em>.'},
+
+  icon:`<circle cx="12" cy="14" r="6.4"/><path d="M12 7.6C12 5 10 3.4 8.6 2.6c.6 2.4-1 3-1 5"/><path d="M12 7.6c.4-1.8 1.8-3 3.4-3.4-.4 1.6.2 2.4.2 3.4"/>`,
+  orbit:{col:'#ff6b35', glow:'#ffb066', tilt: 0.00, speed: 1.55, rx:24, ry: 8.5, ph:0.0, layer:0},
+  core:{hi:'#fff1d6', mid:'#ff8a4c', lo:'#8a2a10', rim:'#2a0f06', n1:'#c2461c', n2:'#ffb066', spark:'#fff0c0'},
+
+  /* talents and bound artifacts on top of the level numbers */
+  modify(o, has, M){
+    o.count  += A('emberglass');
+    o.radius *= 1 + 0.15*A('emberglass');
+    if(has('frenzy')){ o.dmg *= 1.3; o.pierce = Math.max(o.pierce+1, Math.ceil(o.pierce*1.3)); o.radius *= 1.3; o.count += 3; }
+    if(has('molotov')) o.molotov = true;
+    if(has('evolve')){ o.meteor = true; o.radius *= 2; o.dmg *= 1.4; }
+    o.speed = 470; o.size = 5.2*M.area;
+  },
+  cast: castFireball,
+
+  shots:{
+    fireball:{
+      step(s, dt){
+        s.x += s.vx*dt; s.y += s.vy*dt; s.spin += dt*9;
+        for(const e of gridQuery(s.x, s.y, s.r+26)){
+          if(e.dead || s.hit.has(e)) continue;
+          const rr = e.r + s.r;
+          if(dist2(s.x,s.y,e.x,e.y) >= rr*rr) continue;
+          s.hit.add(e);
+          fireballBlast(s.st, s.x, s.y, s.dmg, s.R, false);
+          return ++s.hits > s.pierce;
+        }
+        return false;
+      },
+      expire(s){ fireballBlast(s.st, s.x, s.y, s.dmg, s.R, false); return false; },
+      draw: drawFireball
+    }
+  },
+  falls:{ meteor: drawFireball },
+  zones:{
+    /* the scorch a meteor leaves behind (visual only) */
+    crater:{
+      layer:'under',
+      step(z, dt){ z.life -= dt; return z.life <= 0; },
+      draw(z){
+        const a = clamp(z.life/z.max,0,1);
+        ctx.save();
+        ctx.globalAlpha = 0.45*a; ctx.fillStyle = '#1a0f0a';
+        ctx.beginPath(); ctx.ellipse(z.x,z.y,z.r,z.r*0.6,0,0,TAU); ctx.fill();
+        ctx.globalAlpha = 0.6*a; ctx.strokeStyle = '#ff8c42'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.ellipse(z.x,z.y,z.r,z.r*0.6,0,0,TAU); ctx.stroke();
+        ctx.globalAlpha = 0.5*a; ctx.lineWidth = 1;
+        for(let i=0;i<6;i++){   /* cracks radiating from the impact */
+          const aa = i*TAU/6 + z.x*0.013;
+          ctx.beginPath(); ctx.moveTo(z.x+Math.cos(aa)*z.r*0.3, z.y+Math.sin(aa)*z.r*0.18);
+          ctx.lineTo(z.x+Math.cos(aa)*z.r*1.25, z.y+Math.sin(aa)*z.r*0.75); ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+  }
+};
+
+/* ==== js/spells/lightray.js ==== */
+/* ==== Ray of Light (light) ====
+   Rays across the whole screen in random directions, burning every 0.2s they last.
+   Talents: Refract, Sol, Prism (evolve). */
+
+
+
+
+
+
+
+
+
+function castLightRay(st){
+  const p = S.player, dmg = st.dmg*st.dmgMult;
+  const elOf = () => st.prism ? pick(EL_KEYS) : 'light';
+  const ticks = Math.max(1, Math.round(st.dur/0.2));
+  if(st.sol){
+    const arms = [];
+    for(let k=0;k<st.count;k++) arms.push(elOf());
+    S.zones.push({type:'sol', x:p.x, y:p.y, a:rnd(TAU), spin:1.4, arms, life:st.dur, max:st.dur,
+      acc:0.2, ticks, done:0, dmg, width:st.width, bounce:st.bounce||0});
+    return;
+  }
+  for(let i=0;i<st.count;i++){
+    S.zones.push({type:'ray', segs:screenRay(p.x, p.y, rnd(TAU), st.bounce||0), life:st.dur, max:st.dur,
+      acc:0.2, ticks, done:0, dmg, width:st.width, el:elOf()});
+  }
+}
+
+function drawBeam(x,y,a,reach,w,alpha,color,tail=0){
+  ctx.save();
+  ctx.translate(x,y); ctx.rotate(a);
+  const g = ctx.createLinearGradient(0,0,reach,0);
+  g.addColorStop(0, `rgba(255,255,255,${0.95*alpha})`);
+  g.addColorStop(0.12, hexA(color, 0.75*alpha));
+  g.addColorStop(1, hexA(color, tail*alpha));   /* tail>0 keeps the beam lit to the wall */
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(0,-w*0.5); ctx.lineTo(reach,-w*0.3);
+  ctx.lineTo(reach, w*0.3); ctx.lineTo(0, w*0.5);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = alpha*0.9;
+  ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = Math.max(1, w*0.14);
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(reach,0); ctx.stroke();
+  ctx.restore();
+}
+
+const lightray = {
+  key:'lightray',
+  name:'Ray of Light', el:'light', color:'#ffd166', kind:'Beam · Light',
+  blurb:'Rays cut across the whole screen in random directions and burn for every moment they last.',
+  base:{cd:3, dmg:30, count:3, dur:0.2, width:12},
+  levels:[
+    {at:[4,7,10,13],   stat:'count', add:1},
+    {at:[2,5,8,11,14], stat:'dur',   add:0.2},
+    {at:[3,6,9,12],    stat:'dmg',   mul:1.25}
+  ],
+  t7:[
+    {id:'refract', name:'Refract', txt:'Rays <em>bounce once</em> off the edge of the screen, and hit for <em>1.3×</em>.'},
+    {id:'sol',     name:'Sol',     txt:'Rays fan out <em>evenly</em> and <em>sweep clockwise</em> for <em>1.5s</em>. Cooldown becomes <em>2.5s</em>.'}
+  ],
+  evolve:{name:'Prism', txt:'Every ray takes a <em>random element</em> — fire, ice, light, dark, earth, wind, water or electric — and inflicts its effect.'},
+
+  icon:`<circle cx="12" cy="12" r="3.2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.8 2.8M16.2 16.2L19 19M19 5l-2.8 2.8M7.8 16.2L5 19"/>`,
+  orbit:{col:'#ffd166', glow:'#fff0bf', tilt: 2.10, speed: 1.05, rx:23, ry: 8.0, ph:3.4, layer:2},
+  core:{hi:'#fffbe8', mid:'#ffd166', lo:'#8a6a1a', rim:'#2a2008', n1:'#c9a227', n2:'#fff0bf', spark:'#ffffff'},
+
+  modify(o, has, M){
+    o.count += A('refractor');
+    o.width *= M.area * (1 + 0.30*A('solarfocus'));
+    o.dmg   *= 1 + 0.15*A('solarfocus');
+    if(has('refract')){ o.bounce = 1; o.dmg *= 1.3; }
+    if(has('sol')){ o.sol = true; o.dur = 1.5; o.cd = 2.5; }
+    if(has('evolve')) o.prism = true;
+  },
+  cast: castLightRay,
+
+  zones:{
+    /* a ray across the screen, burning every 0.2s it lasts */
+    ray:{
+      layer:'over',
+      step(z, dt){
+        z.acc += dt;
+        if(z.acc >= 0.2 && z.done < z.ticks){
+          z.acc = 0; z.done++;
+          const c = ELEMENTS[z.el].color;
+          for(const g of z.segs) beamHit(g.x,g.y,g.a,g.len,z.width,z.dmg,c,new Set(),z.el);
+        }
+        z.life -= dt;
+        return z.life <= 0 && z.done >= z.ticks;
+      },
+      draw(z){
+        const a = clamp(z.life/z.max, 0, 1)*0.6 + 0.4, c = ELEMENTS[z.el].color;
+        z.segs.forEach((g,k) => drawBeam(g.x, g.y, g.a, g.len, z.width*(0.6+a*0.6), a*(1-k*0.2), c, 0.55));
+      }
+    },
+    /* Sol: evenly spaced arms around you sweeping clockwise */
+    sol:{
+      layer:'over',
+      step(z, dt, p){
+        z.x = p.x; z.y = p.y;
+        z.a += z.spin*dt;
+        z.acc += dt;
+        if(z.acc >= 0.2){
+          z.acc = 0;
+          const n = z.arms.length;
+          z.arms.forEach((el,k) => {
+            const seen = new Set(), c = ELEMENTS[el].color;
+            for(const g of raySegments(z.x, z.y, z.a + k*TAU/n, z.bounce)) beamHit(g.x,g.y,g.a,g.len,z.width,z.dmg,c,seen,el);
+          });
+        }
+        z.life -= dt;
+        return z.life <= 0;
+      },
+      draw(z){
+        const fade = Math.min(1, z.life*3, (z.max-z.life)*6), n = z.arms.length;
+        z.arms.forEach((el,k) => {
+          raySegments(z.x, z.y, z.a + k*TAU/n, z.bounce).forEach((g,j) =>
+            drawBeam(g.x, g.y, g.a, g.len, z.width, 0.6*fade*(1-j*0.2), ELEMENTS[el].color, 0.5));
+        });
+        ctx.save();
+        ctx.globalAlpha = 0.5*fade; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 1.4;
+        starPath(ctx, z.x, z.y, 34, 15, Math.max(3,n), z.a); ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
+};
+
+/* ==== js/spells/icewave.js ==== */
+/* ==== Ice Wave (ice) ====
+   An expanding ring of cold centred on (and following) the player.
+   Talents: Cold Aura, Frost Reach, Avalanche (evolve). */
+
+
+
+
+
+
+
+
+
+function iceRing(st, delay, mult){
+  const R = st.radius;
+  surge({follow:true, maxR:R, speed:Math.max(240, R/0.4), band:22*S.mods.area, wait:delay||0,
+    dmg:st.dmg*st.dmgMult*(mult||1), edge:st.edge||0, el:'ice', color:st.color});
+}
+function castIceWave(st){
+  if(st.aura) return;                           /* Cold Aura replaces the waves — see updateAura */
+  for(let i=0;i<(st.waves||1);i++) iceRing(st, i*0.25, 1);
+}
+
+/* Cold Aura: steady slow, damage every second, and a 2× pulse every 2.5s (outside cooldown reduction) */
+function updateAura(dt, st){
+  const p = S.player, R = st.radius, dmg = st.dmg*st.dmgMult, edge = st.edge||0;
+  S.auraSlow  = (S.auraSlow ||0) + dt;
+  S.auraTick  = (S.auraTick ||0) + dt;
+  S.auraPulse = (S.auraPulse||0) + dt;
+  if(S.auraSlow >= 0.25){
+    S.auraSlow = 0;
+    for(const e of gridQuery(p.x,p.y,R+20)) if(!e.dead && dist2(e.x,e.y,p.x,p.y) < R*R) applyElement(e, 'ice', 0);
+  }
+  if(S.auraTick >= 1){
+    S.auraTick = 0;
+    for(const e of gridQuery(p.x,p.y,R+20).filter(e => !e.dead && dist2(e.x,e.y,p.x,p.y) < R*R)){
+      const d = Math.sqrt(dist2(e.x,e.y,p.x,p.y));
+      dealDamage(e, dmg*(1 + edge*clamp(d/R,0,1)), {color:st.color, el:'ice'});
+    }
+  }
+  if(S.auraPulse >= 2.5){
+    S.auraPulse = 0;
+    for(let i=0;i<(st.waves||1);i++) iceRing(st, i*0.25, 2);
+  }
+}
+
+/* Cold Aura: a standing disc of cold around you (drawn beneath everything) */
+function drawAura(st){
+  const p = S.player, R = st.radius;
+  ctx.save();
+  const g = ctx.createRadialGradient(p.x,p.y,R*0.1,p.x,p.y,R);
+  g.addColorStop(0,'rgba(90,210,244,0.03)'); g.addColorStop(0.8,'rgba(90,210,244,0.07)'); g.addColorStop(1,'rgba(179,236,255,0.14)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(p.x,p.y,R,0,TAU); ctx.fill();
+  ctx.globalAlpha = 0.5; ctx.strokeStyle = '#5ad2f4'; ctx.lineWidth = 1.4;
+  ctx.setLineDash([9,11]); ctx.lineDashOffset = -S.t*18;
+  ctx.beginPath(); ctx.arc(p.x,p.y,R,0,TAU); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 0.55; ctx.fillStyle = '#d8f4ff';
+  for(let i=0;i<14;i++){
+    const aa = i*TAU/14 + S.t*0.35, rr = R*(0.35 + 0.6*((i*0.37 + S.t*0.12)%1));
+    ctx.fillRect(p.x+Math.cos(aa)*rr-1.5, p.y+Math.sin(aa)*rr-1.5, 3, 3);
+  }
+  ctx.restore();
+}
+
+const icewave = {
+  key:'icewave',
+  name:'Ice Wave', el:'ice', color:'#5ad2f4', kind:'Ring · Ice',
+  blurb:'A tight ring of cold bursts out around you, biting and slowing everything it crosses.',
+  base:{cd:2.5, dmg:15, radius:95},
+  levels:[
+    {at:[2,5,8,11,14], stat:'dmg',    mul:1.5},
+    {at:[3,6,9,12],    stat:'radius', mul:1.15},
+    {at:[4,7,10,13],   stat:'cd',     mul:0.8}
+  ],
+  t7:[
+    {id:'aura',  name:'Cold Aura',   txt:'The wave becomes a <em>permanent aura</em>: <em>15% slow</em>, damage <em>every second</em>, and a <em>2× pulse</em> every 2.5s.'},
+    {id:'reach', name:'Frost Reach', txt:'Radius <em>+28%</em>, and damage grows with distance — up to <em>+70% at the edge</em>.'}
+  ],
+  evolve:{name:'Avalanche', txt:'Release <em>three waves</em> in quick succession, with <em>+20% damage</em> and <em>+25% cooldown</em>.'},
+
+  icon:`<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="4.6"/><path d="M12 1.6v2M12 20.4v2M1.6 12h2M20.4 12h2"/>`,
+  orbit:{col:'#5ad2f4', glow:'#b3ecff', tilt: 1.05, speed:-1.25, rx:26, ry: 9.5, ph:1.9, layer:1},
+  core:{hi:'#f2fcff', mid:'#7fd9f5', lo:'#1f6f8c', rim:'#08202a', n1:'#3a9cc0', n2:'#b3ecff', spark:'#ffffff'},
+
+  modify(o, has, M){
+    o.radius *= 1 + 0.18*A('rimelens');
+    if(has('reach')){ o.radius *= 1.28; o.edge = 0.7; }
+    if(has('evolve')){ o.waves = 3; o.dmg *= 1.2; o.cd *= 1.25; }
+    if(has('aura')) o.aura = true;
+  },
+  cast: castIceWave,
+
+  /* every frame while owned (before casting): Cold Aura */
+  update(dt, st){ if(st.aura) updateAura(dt, st); },
+  /* drawn beneath the zones while owned */
+  drawUnder(sp){ if(sp.t7==='aura' || sp.t15==='aura') drawAura(stats('icewave')); }
+};
+
+/* ==== js/spells/imps.js ==== */
+/* ==== Dark Orbs (dark) — internal key 'imps' (it replaced Dark Imps; saved key kept) ====
+   Homing orbs that hunt shape after shape for a few seconds.
+   Talents: Divide and Conquer, Chaos, Supernova (evolve). */
+
+
+
+
+
+
+
+
+
+
+function spawnOrb(st, x, y, a, life, child){
+  S.shots.push({type:'orb', x, y, vx:Math.cos(a)*st.speed, vy:Math.sin(a)*st.speed, st,
+    dmg:st.dmg*st.dmgMult, r:st.r*(child?0.75:1), speed:st.speed*(child?1.15:1), turn:st.turn,
+    life, max:life, target:null, last:null, cool:0, ph:rnd(TAU), child:!!child, color:st.color});
+}
+function castImps(st){
+  const p = S.player;
+  for(let i=0;i<st.count;i++){
+    const a = i*TAU/st.count + rnd(0.3,-0.3);
+    spawnOrb(st, p.x+Math.cos(a)*22, p.y+Math.sin(a)*22, a, st.dur*S.mods.dur, false);
+  }
+}
+/* the nearest *other* shape on screen; if there is none, the one it just hit */
+function orbTarget(s){
+  let best = null, bd = Infinity;
+  for(const e of gridQuery(s.x, s.y, 700)){
+    if(e.dead || e===s.last || !onScreen(e,40)) continue;
+    const d = dist2(e.x,e.y,s.x,s.y);
+    if(d < bd){ bd = d; best = e; }
+  }
+  return best || (s.last && !s.last.dead ? s.last : nearestEnemy(s.x,s.y,900));
+}
+/* Supernova shockwaves: generation 0 from a hit, up to 2 more generations from collisions */
+function spawnNova(x, y, dmg, gen){
+  const R = 70*S.mods.area;
+  S.novaId = (S.novaId||0) + 1;
+  surge({nova:true, id:S.novaId, gen, met:new Set(), x, y, maxR:R, speed:R/0.35, band:18, dmg, el:'dark', color:'#c99bff'});
+}
+function novaCollisions(){
+  const nv = S.zones.filter(z => z.type==='surge' && z.nova);
+  for(let i=0;i<nv.length;i++) for(let j=i+1;j<nv.length;j++){
+    const a = nv[i], b = nv[j];
+    if(a.met.has(b.id) || dist2(a.x,a.y,b.x,b.y) > (a.r+b.r)**2) continue;
+    a.met.add(b.id);
+    const g = Math.max(a.gen, b.gen) + 1;
+    if(g <= 2 && nv.length < 40 && Math.random() < 0.6) spawnNova((a.x+b.x)/2, (a.y+b.y)/2, Math.max(a.dmg,b.dmg), g);
+  }
+}
+
+function orbStep(s, dt){
+  s.ph += dt*6;
+  s.cool = Math.max(0, s.cool-dt);
+  if(!s.target || s.target.dead) s.target = orbTarget(s);
+  if(s.target){
+    const want = Math.atan2(s.target.y-s.y, s.target.x-s.x);
+    let cur = Math.atan2(s.vy,s.vx);
+    const df = ((want-cur+Math.PI*3)%TAU)-Math.PI;
+    cur += clamp(df, -s.turn*dt, s.turn*dt);
+    s.vx = Math.cos(cur)*s.speed; s.vy = Math.sin(cur)*s.speed;
+  }
+  s.x += s.vx*dt; s.y += s.vy*dt;
+  if(s.cool > 0) return false;
+  for(const e of gridQuery(s.x, s.y, s.r+24)){
+    if(e.dead) continue;
+    const rr = e.r + s.r;
+    if(dist2(s.x,s.y,e.x,e.y) >= rr*rr) continue;
+    dealDamage(e, s.dmg, {color:s.color, el:'dark'});
+    burst(s.x, s.y, s.color, 5);
+    s.cool = 0.2; s.last = e; s.target = null;
+    const st = s.st;
+    if(st.chaos) dotZone(s.x, s.y, 50*S.mods.area, s.dmg*0.4, 4*S.mods.dur, 'chaos');
+    if(st.nova) spawnNova(s.x, s.y, s.dmg*1.5, 0);
+    if(st.split && !s.child){   /* Divide and Conquer: the orb becomes two */
+      const a = Math.atan2(s.vy, s.vx);
+      spawnOrb(st, s.x, s.y, a-1, s.life, true);
+      spawnOrb(st, s.x, s.y, a+1, s.life, true);
+      burst(s.x, s.y, s.color, 10);
+      return true;
+    }
+    return false;
+  }
+  return false;
+}
+
+function drawOrbShot(s){
+  ctx.save();
+  ctx.translate(s.x,s.y);
+  const wob = 1 + Math.sin(s.ph)*0.07, fade = Math.min(1, s.life*3);
+  ctx.globalAlpha = 0.3*fade; ctx.fillStyle = s.color;
+  ctx.beginPath(); ctx.arc(0,0,s.r*2.3*wob,0,TAU); ctx.fill();
+  ctx.globalAlpha = fade;
+  const g = ctx.createRadialGradient(0,0,s.r*0.2, 0,0,s.r*wob);
+  g.addColorStop(0,'#3a1d52'); g.addColorStop(0.7,'#1a0d26'); g.addColorStop(1,'#0c0612');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0,0,s.r*wob,0,TAU); ctx.fill();
+  ctx.strokeStyle = s.color; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.arc(0,0,s.r*wob,0,TAU); ctx.stroke();
+  ctx.restore();
+}
+
+const imps = {
+  key:'imps',
+  name:'Dark Orbs', el:'dark', color:'#a86bd8', kind:'Summon · Dark',
+  blurb:'Homing orbs of nothing hunt shape after shape, terrifying whatever they touch.',
+  base:{cd:2.5, dmg:20, count:3, dur:3},
+  levels:[
+    {at:[2,6,10,14], stat:'count', add:1},
+    {at:[3,7,11],    stat:'dmg',   mul:1.3},
+    {at:[4,8,12],    stat:'dur',   add:1},
+    {at:[5,9,13],    stat:'cd',    mul:0.8}
+  ],
+  t7:[
+    {id:'divide', name:'Divide and Conquer', txt:'Orbs <em>split in two</em> on their first hit, and hit for <em>+20%</em>.'},
+    {id:'chaos',  name:'Chaos',              txt:'Every hit leaves an area that deals <em>40% over 4s</em>.'}
+  ],
+  evolve:{name:'Supernova', txt:'Every hit releases a <em>shockwave</em> for <em>1.5×</em>. Where two shockwaves collide, a <em>60% chance</em> of another.'},
+
+  icon:`<circle cx="9" cy="10" r="4.4"/><circle cx="16.5" cy="15" r="3"/><path d="M7.4 8.8h.01M10.6 8.8h.01" stroke-width="2.2"/>`,
+  orbit:{col:'#a86bd8', glow:'#d9b5ff', tilt:-0.62, speed:-1.70, rx:27, ry:10.0, ph:5.1, layer:3},
+  core:{hi:'#b48be0', mid:'#4a2470', lo:'#14081f', rim:'#a86bd8', n1:'#2a1240', n2:'#7a4aa8', spark:'#e0c4ff'},
+
+  modify(o, has, M){
+    o.count += A('impwarden');
+    o.dur   += A('blacksigil');
+    o.turn   = 5 * (1 + 0.40*A('blacksigil'));
+    if(has('divide')){ o.split = true; o.dmg *= 1.2; }
+    if(has('chaos')) o.chaos = true;
+    if(has('evolve')) o.nova = true;
+    o.r = 7*M.area; o.speed = 300;
+  },
+  cast: castImps,
+
+  shots:{ orb:{ step: orbStep, draw: drawOrbShot } },
+  /* after every zone has moved: Supernova shockwaves that meet may spawn another */
+  afterZones: novaCollisions
+};
+
+/* ==== js/spells/windblade.js ==== */
+/* ==== Wind Blade (wind) ====
+   A 60° arc of cutting air flung at the nearest shape; pierces.
+   Talents: Vortex, Monsoon, Storm (evolve). */
+
+
+
+
+
+
+
+/* a blade is an arc of the circle around its origin, widening as it flies outward */
+function arcShot(o){
+  S.shots.push(Object.assign({type:'arc', d:18, hits:0, hit:new Set(), back:false}, o));
+}
+function castWindBlade(st){
+  const p = S.player, dmg = st.dmg*st.dmgMult;
+  const tgt = nearestEnemy(p.x,p.y,900);
+  const base = tgt ? Math.atan2(tgt.y-p.y,tgt.x-p.x) : Math.atan2(p.dir.y,p.dir.x);
+  const range = Math.max(view.w,view.h)*0.45;
+  if(st.storm){
+    /* one 170° slash carrying every blade; Vortex adds a mirrored 140° slash; 2.5s in total */
+    const life = st.ret ? 1.25 : 2.5, speed = 320;
+    const slash = (a, half) => arcShot({ox:p.x, oy:p.y, a, half, speed, life, flight:life, dmg:dmg*st.count,
+      pierce:Infinity, ret:!!st.ret, band:st.band*1.6, color:st.color, storm:true});
+    slash(base, 85*Math.PI/180);
+    if(st.vortex) slash(base+Math.PI, 70*Math.PI/180);
+    return;
+  }
+  const life = range/st.speed;
+  for(let i=0;i<st.count;i++){
+    const a = st.vortex ? base + i*TAU/st.count : fanAngle(base, i, Math.PI/3);
+    arcShot({ox:p.x, oy:p.y, a, half:Math.PI/6, speed:st.speed, life, flight:life, dmg,
+      pierce:st.pierce, ret:!!st.ret, band:st.band, color:st.color});
+  }
+}
+
+function arcStep(s, dt){
+  const p = S.player;
+  if(s.back){
+    s.ox = p.x; s.oy = p.y;
+    s.d -= s.speed*dt;
+    if(s.d <= 14) return true;
+  } else s.d += s.speed*dt;
+  for(const e of gridQuery(s.ox, s.oy, s.d + s.band + 20)){
+    if(e.dead || s.hit.has(e)) continue;
+    const dx = e.x-s.ox, dy = e.y-s.oy, d = Math.hypot(dx,dy) || 1;
+    if(Math.abs(d - s.d) > s.band + e.r) continue;
+    const off = Math.abs(((Math.atan2(dy,dx) - s.a + Math.PI*3) % TAU) - Math.PI);
+    if(off > s.half + e.r/d) continue;
+    s.hit.add(e);
+    dealDamage(e, s.dmg, {color:s.color, el:'wind', big:!!s.storm});
+    if(++s.hits > s.pierce) return true;
+  }
+  return false;
+}
+
+/* Monsoon: at the end of its flight the blade turns for home, pierce restored, 1.5× */
+function arcExpire(s){
+  if(s.ret && !s.back){ s.back = true; s.life = s.flight*2; s.hits = 0; s.hit.clear(); s.dmg *= 1.5; return true; }
+  return false;
+}
+
+function drawArc(s){
+  const r = Math.max(2, s.d), a0 = s.a - s.half, a1 = s.a + s.half;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.globalAlpha = 0.22; ctx.strokeStyle = s.color; ctx.lineWidth = s.band*2.2;
+  ctx.beginPath(); ctx.arc(s.ox,s.oy,r,a0,a1); ctx.stroke();
+  ctx.globalAlpha = 0.9; ctx.strokeStyle = '#e6fffa'; ctx.lineWidth = Math.max(2, s.band*0.45);
+  ctx.beginPath(); ctx.arc(s.ox,s.oy,r,a0,a1); ctx.stroke();
+  ctx.globalAlpha = 0.3; ctx.strokeStyle = '#c4f1ea'; ctx.lineWidth = 1;   /* air streaks behind */
+  for(const k of [1.2, 2.2]){
+    const rr = s.back ? r + s.band*k : r - s.band*k;
+    if(rr > 2){ ctx.beginPath(); ctx.arc(s.ox,s.oy,rr,a0+0.05,a1-0.05); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+
+const windblade = {
+  key:'windblade',
+  name:'Wind Blade', el:'wind', color:'#79c7bf', kind:'Arc · Wind',
+  blurb:'A 60° arc of cutting air flung at the nearest shape. It passes through one and keeps going.',
+  base:{cd:2, dmg:22, count:1, pierce:1},
+  levels:[
+    {at:[2,6,10,14], stat:'count',  add:1},
+    {at:[3,7,11],    stat:'dmg',    mul:1.3},
+    {at:[4,8,12],    stat:'cd',     mul:0.8},
+    {at:[5,9,13],    stat:'pierce', add:1}
+  ],
+  t7:[
+    {id:'vortex',  name:'Vortex',  txt:'<em>+3 blades</em>, thrown <em>in all directions</em> at once, with <em>+20% damage</em>.'},
+    {id:'monsoon', name:'Monsoon', txt:'Blades <em>sweep back to you</em>, hitting for <em>1.5×</em> on the way home.'}
+  ],
+  evolve:{name:'Storm', txt:'All blades merge into <em>one 170° slash</em> with <em>infinite pierce</em> that lasts 2.5s and hits for <em>damage × blades merged</em>. With Vortex, a mirrored 140° slash goes the other way.'},
+
+  icon:`<path d="M4 17C9 19.5 17 17 20 7c-4.2 6.4-10.4 9.2-16 10z"/><path d="M3 9h6M5 12.5h4"/>`,
+  orbit:{col:'#79c7bf', glow:'#c4f1ea', tilt: 0.52, speed: 1.40, rx:25, ry: 9.0, ph:2.6, layer:4},
+  core:{hi:'#f0fffb', mid:'#79c7bf', lo:'#1f5c55', rim:'#08201d', n1:'#3f8f86', n2:'#c4f1ea', spark:'#ffffff'},
+
+  modify(o, has, M){
+    if(has('vortex')){ o.count += 3; o.dmg *= 1.2; o.vortex = true; }
+    if(has('monsoon')) o.ret = true;
+    if(has('evolve')) o.storm = true;
+    o.band = 16*M.area; o.speed = 520;
+  },
+  cast: castWindBlade,
+
+  shots:{ arc:{ step: arcStep, expire: arcExpire, draw: drawArc } }
+};
+
+/* ==== js/spells/chain.js ==== */
+/* ==== Electric Chain (electric) ====
+   A fast bolt at the nearest shape that jumps on to more.
+   Talents: Static, Superconductivity, Shock Therapy (evolve). */
+
+
+
+
+
+
+
+
+function boltShot(x, y, target, dmg, jumps, hit, st, plain){
+  return {type:'bolt', x, y, sx:x, sy:y, target, dmg, jumps, hit, st, plain, speed:950, life:1.2};
+}
+/* bolt s has reached e: strike it, then arc on to the nearest shape it has not touched */
+function chainOn(s, e){
+  dealDamage(e, s.dmg, {color:ELEMENTS.electric.color, el:'electric'});
+  zapFx(s.sx, s.sy, e.x, e.y);
+  s.hit.add(e);
+  if(s.plain || s.jumps <= 0) return;
+  const nx = nearestEnemy(e.x, e.y, s.st.range, s.hit);
+  if(nx) S.shots.push(boltShot(e.x, e.y, nx, s.dmg*(s.st.ramp||1), s.jumps-1, s.hit, s.st, false));
+  if(s.st.extra){   /* Shock Therapy: an extra bolt that cannot jump */
+    const ex = new Set(s.hit); if(nx) ex.add(nx);
+    const o = nearestEnemy(e.x, e.y, 300, ex);
+    if(o) S.shots.push(boltShot(e.x, e.y, o, s.dmg*1.5, 0, ex, s.st, true));
+  }
+}
+function castChain(st){
+  const p = S.player, dmg = st.dmg*st.dmgMult;
+  if(st.static){
+    for(let i=0;i<st.count;i++){
+      const a = rnd(TAU);
+      S.shots.push({type:'static', x:p.x, y:p.y, vx:Math.cos(a)*140, vy:Math.sin(a)*140, st, dmg,
+        zaps:st.jumps, zapT:1.5, life:st.jumps*1.5 + 4, ph:rnd(TAU)});
+    }
+    return;
+  }
+  const used = new Set();
+  for(let i=0;i<st.count;i++){
+    const t = nearestEnemy(p.x, p.y, 700, used) || nearestEnemy(p.x, p.y, 700);
+    if(!t) return;
+    used.add(t);
+    S.shots.push(boltShot(p.x, p.y, t, dmg, st.jumps, new Set(), st, false));
+  }
+}
+function staticBoom(s){
+  const R = 80*S.mods.area;
+  ring(s.x, s.y, R, ELEMENTS.electric.color);
+  burst(s.x, s.y, '#c4bdff', 16, 1.4);
+  hitArea(s.x, s.y, R, s.dmg*2, {color:ELEMENTS.electric.color, el:'electric', big:true});
+}
+
+function boltStep(s, dt){
+  let t = s.target;
+  if(!t || t.dead){ t = s.target = nearestEnemy(s.x, s.y, 300, s.hit); if(!t) return true; }
+  const dx = t.x-s.x, dy = t.y-s.y, d = Math.hypot(dx,dy) || 1, step = s.speed*dt;
+  if(d <= step + t.r){ s.x = t.x; s.y = t.y; chainOn(s, t); return true; }
+  s.x += dx/d*step; s.y += dy/d*step;
+  return false;
+}
+
+/* Static: a slow ball that drifts toward shapes, zapping one every 1.5s, then bursts */
+function staticStep(s, dt){
+  s.ph += dt*8;
+  const t = nearestEnemy(s.x, s.y, 600);
+  if(t){
+    const a = Math.atan2(t.y-s.y, t.x-s.x), k = Math.min(1, dt*2);
+    s.vx = lerp(s.vx, Math.cos(a)*140, k); s.vy = lerp(s.vy, Math.sin(a)*140, k);
+  }
+  s.x += s.vx*dt; s.y += s.vy*dt;
+  s.zapT -= dt;
+  if(s.zapT > 0) return false;
+  const z = nearestEnemy(s.x, s.y, s.st.range);
+  if(!z){ s.zapT = 0.3; return false; }
+  s.zapT = 1.5;
+  dealDamage(z, s.dmg, {color:ELEMENTS.electric.color, el:'electric'});
+  zapFx(s.x, s.y, z.x, z.y);
+  if(s.st.extra){
+    const ex = new Set([z]), o = nearestEnemy(s.x, s.y, 300, ex);
+    if(o) S.shots.push(boltShot(s.x, s.y, o, s.dmg*1.5, 0, ex, s.st, true));
+  }
+  s.dmg *= s.st.ramp || 1;
+  if(--s.zaps <= 0){ staticBoom(s); return true; }
+  return false;
+}
+
+function drawBolt(s){
+  ctx.save();
+  ctx.globalAlpha = 0.5; ctx.strokeStyle = '#b9b0ff'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(s.sx,s.sy); ctx.lineTo(s.x,s.y); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(s.x,s.y,3.2,0,TAU); ctx.fill();
+  ctx.globalAlpha = 0.4; ctx.fillStyle = '#7b6cff';
+  ctx.beginPath(); ctx.arc(s.x,s.y,8,0,TAU); ctx.fill();
+  ctx.restore();
+}
+function drawStatic(s){
+  ctx.save();
+  ctx.translate(s.x,s.y);
+  ctx.globalAlpha = 0.3; ctx.fillStyle = '#7b6cff';
+  ctx.beginPath(); ctx.arc(0,0,16,0,TAU); ctx.fill();
+  ctx.globalAlpha = 1; ctx.fillStyle = '#d9d4ff';
+  ctx.beginPath(); ctx.arc(0,0,6,0,TAU); ctx.fill();
+  ctx.strokeStyle = '#b9b0ff'; ctx.lineWidth = 1.2;
+  for(let k=0;k<4;k++){   /* crackle */
+    const aa = s.ph + k*TAU/4;
+    ctx.beginPath(); ctx.moveTo(Math.cos(aa)*7, Math.sin(aa)*7);
+    ctx.lineTo(Math.cos(aa+0.4)*12, Math.sin(aa+0.4)*12); ctx.lineTo(Math.cos(aa)*16, Math.sin(aa)*16); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+const chain = {
+  key:'chain',
+  name:'Electric Chain', el:'electric', color:'#7b6cff', kind:'Chain · Electric',
+  blurb:'A bolt leaps at the nearest shape and arcs on to two more.',
+  base:{cd:2, dmg:20, count:1, jumps:2},
+  levels:[
+    {at:[2,6,10,14], stat:'count', add:1},
+    {at:[3,7,11],    stat:'dmg',   mul:1.35},
+    {at:[4,8,12],    stat:'cd',    mul:0.8},
+    {at:[5,9,13],    stat:'jumps', add:1}
+  ],
+  t7:[
+    {id:'static', name:'Static',            txt:'Cast <em>slow electric balls</em> that zap a nearby shape every 1.5s — as many zaps as jumps — then <em>explode for 2×</em>.'},
+    {id:'super',  name:'Superconductivity', txt:'<em>Double the jumps</em>, and the bolt hits <em>1.2× harder</em> with every jump.'}
+  ],
+  evolve:{name:'Shock Therapy', txt:'Every jump also launches <em>an extra bolt</em> that cannot jump but hits for <em>1.5×</em>.'},
+
+  icon:`<path d="M3 13l5-5 4 4 4-6 5 5"/><circle cx="3" cy="13" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="21" cy="11" r="1.4"/><path d="M11 21l2-4h-3l2-4"/>`,
+  orbit:{col:'#7b6cff', glow:'#c4bdff', tilt:-1.30, speed: 1.90, rx:22, ry: 7.5, ph:0.8, layer:5},
+  core:{hi:'#efeaff', mid:'#7b6cff', lo:'#241a66', rim:'#0c0828', n1:'#4b3fc0', n2:'#c4bdff', spark:'#ffffff'},
+
+  modify(o, has, M){
+    if(has('static')) o.static = true;
+    if(has('super')){ o.jumps *= 2; o.ramp = 1.2; }
+    if(has('evolve')) o.extra = true;
+    o.range = 220*M.area;
+  },
+  cast: castChain,
+
+  shots:{
+    bolt:{ step: boltStep, draw: drawBolt },
+    static:{ step: staticStep, expire(s){ staticBoom(s); return false; }, draw: drawStatic }
+  }
+};
+
+/* ==== js/spells/earth.js ==== */
+/* ==== Earth Splitter (earth) ====
+   Rifts open under the nearest separate shapes and root them.
+   Talents: Earthquake, Rumble, Seismic Wave (evolve). */
+
+
+
+
+
+
+
+
+function castEarth(st){
+  const p = S.player, dmg = st.dmg*st.dmgMult;
+  const pts = st.quake ? clusterTargets(p.x, p.y, 1) : nearestN(st.count, st.radius*1.2).map(e => ({x:e.x, y:e.y}));
+  pts.forEach((t,i) => S.zones.push({type:'rift', x:t.x, y:t.y, r:st.radius, wait:i*0.08, opened:false,
+    life: st.rumble ? 1 : 0.45, max: st.rumble ? 1 : 0.45, dmg, rumble:!!st.rumble, seismic:!!st.seismic,
+    rot:rnd(TAU), color:st.color}));
+}
+
+/* opens (damage once), stays a moment, and with Rumble leaves slowing ground */
+function riftStep(z, dt){
+  if(z.wait > 0){ z.wait -= dt; return false; }
+  if(!z.opened){
+    z.opened = true;
+    hitArea(z.x, z.y, z.r, z.dmg, {color:z.color, el:'earth'});
+    burst(z.x, z.y, '#7a5530', 10, 1.2);
+    S.shake = Math.max(S.shake, 3);
+    if(z.seismic){
+      ring(z.x, z.y, z.r*1.5, '#d6a96e');
+      hitArea(z.x, z.y, z.r*1.5, z.dmg*1.5, {color:'#d6a96e', el:'earth'});
+    }
+  }
+  z.life -= dt;
+  if(z.life <= 0){
+    if(z.rumble) dotZone(z.x, z.y, z.r, z.dmg*0.3, 5*S.mods.dur, 'mire', {slow:0.10});
+    return true;
+  }
+  return false;
+}
+
+function drawRift(z){
+  if(z.wait > 0) return;
+  const a = clamp(z.life/z.max,0,1);
+  ctx.save();
+  ctx.globalAlpha = 0.35*a; ctx.fillStyle = '#2a1a0c';
+  ctx.beginPath(); ctx.ellipse(z.x,z.y,z.r,z.r*0.75,z.rot,0,TAU); ctx.fill();
+  ctx.globalAlpha = 0.9*a; ctx.strokeStyle = '#ffb066'; ctx.lineWidth = 2.2;
+  ctx.beginPath();   /* the split itself */
+  for(let i=0;i<=6;i++){
+    const k = i/6 - 0.5, j = (i%2 ? 1 : -1) * z.r*0.12;
+    const px = z.x + Math.cos(z.rot)*k*z.r*2 - Math.sin(z.rot)*j;
+    const py = z.y + Math.sin(z.rot)*k*z.r*2 + Math.cos(z.rot)*j;
+    i ? ctx.lineTo(px,py) : ctx.moveTo(px,py);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 0.6*a; ctx.strokeStyle = z.color; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.ellipse(z.x,z.y,z.r,z.r*0.75,z.rot,0,TAU); ctx.stroke();
+  ctx.restore();
+}
+
+const earth = {
+  key:'earth',
+  name:'Earth Splitter', el:'earth', color:'#a0703c', kind:'Rift · Earth',
+  blurb:'The ground splits open under the nearest shapes and holds them fast.',
+  base:{cd:2.5, dmg:30, count:1, radius:26},
+  levels:[
+    {at:[2,6,10,14], stat:'count',  add:1},
+    {at:[3,7,11],    stat:'dmg',    mul:1.3},
+    {at:[4,8,12],    stat:'cd',     mul:0.75},
+    {at:[5,9,13],    stat:'radius', mul:1.35}
+  ],
+  t7:[
+    {id:'quake',  name:'Earthquake', txt:'Open <em>one rift with 2× radius</em> on the biggest cluster; every rift given up cuts <em>0.25s</em> off the cooldown.'},
+    {id:'rumble', name:'Rumble',     txt:'Rifts stay open <em>1s</em>, then leave ground that <em>slows 10%</em> and deals <em>30% over 5s</em>.'}
+  ],
+  evolve:{name:'Seismic Wave', txt:'Each rift opens with a <em>shockwave</em> — <em>1.5× damage</em> over <em>1.5× the radius</em>.'},
+
+  icon:`<path d="M2 19h20"/><path d="M4 19l5-9 3 4 3-7 5 12"/><path d="M12 14l-1.2 2.4 1.4 1.2-.8 1.4"/>`,
+  orbit:{col:'#a0703c', glow:'#e0b98a', tilt: 1.60, speed:-0.90, rx:28, ry:10.5, ph:4.2, layer:6},
+  core:{hi:'#f3e2c8', mid:'#a0703c', lo:'#3d2810', rim:'#1a1006', n1:'#6e4a22', n2:'#d6a96e', spark:'#fff3dc'},
+
+  modify(o, has, M){
+    if(has('quake')){ o.cd = Math.max(0.5, o.cd - 0.25*(o.count-1)); o.count = 1; o.radius *= 2; o.quake = true; }
+    if(has('rumble')) o.rumble = true;
+    if(has('evolve')) o.seismic = true;
+  },
+  cast: castEarth,
+
+  zones:{ rift:{ layer:'under', step: riftStep, draw: drawRift } }
+};
+
+/* ==== js/spells/tsunami.js ==== */
+/* ==== Tsunami (water) ====
+   A giant wave rolls out the way you are moving.
+   Talents: Whirlpool, Rainfall, Contamination (evolve) — and their pairings. */
+
+
+
+
+
+
+
+
+
+function castTsunami(st){
+  const p = S.player, dmg = st.dmg*st.dmgMult, size = st.size;
+  const dir = Math.atan2(p.dir.y, p.dir.x);
+  if(st.rain){
+    const R = 70*size*(st.contam ? 1.2 : 1);
+    fallTargets(2*st.count).forEach((t,i) => skyFall('drop', t.x, t.y, i*0.07, 8*size, st.color, (x,y)=>{
+      ring(x, y, R, st.color); burst(x, y, '#9fd0ff', 14, 1.4);
+      hitArea(x, y, R, dmg*1.5, {color:st.color, el:'water'}, st.contam ? e => contaminate(e, dmg*1.5) : null);
+      if(st.whirl) S.zones.push({type:'whirl', x, y, r:R, life:3, max:3, acc:0, tick:0, pull:45, slow:0.4, color:st.color, spin:rnd(TAU)});
+      if(st.contam) dotZone(x, y, R, dmg*1.5*0.3, 5, 'water');
+    }));
+    return;
+  }
+  if(st.whirl){
+    const k = 1 + 0.1*st.count;
+    S.zones.push({type:'whirl', follow:true, x:p.x, y:p.y, r:160*size*k, life:3, max:3, acc:0, tick:dmg*0.25*k,
+      pull:60, slow:0.3, color:st.color, spin:0, rogue: st.contam ? dmg*k : 0, rogueT:0});
+    return 3;   /* the cooldown starts once the whirlpool ends */
+  }
+  const n = st.contam ? 4*st.count : st.count;
+  for(let i=0;i<n;i++){
+    const a = st.contam ? dir + i*TAU/n : fanAngle(dir, i, Math.PI/6);
+    S.shots.push({type:'wave', x:p.x, y:p.y, a, speed:520, w:260*size, th:46*size, life:0.9, max:0.9,
+      dmg, hit:new Set(), contam:!!st.contam, color:st.color});
+  }
+}
+
+function waveStep(s, dt){
+  const ca = Math.cos(s.a), sa = Math.sin(s.a);
+  s.x += ca*s.speed*dt; s.y += sa*s.speed*dt;
+  for(const e of gridQuery(s.x, s.y, s.w/2 + s.th + 20)){
+    if(e.dead || s.hit.has(e)) continue;
+    const rx = e.x-s.x, ry = e.y-s.y;
+    if(Math.abs(rx*ca + ry*sa) > s.th/2 + e.r || Math.abs(-rx*sa + ry*ca) > s.w/2 + e.r) continue;
+    s.hit.add(e);
+    dealDamage(e, s.dmg, {color:s.color, el:'water'});
+    if(!e.dead){
+      const kb = e.boss ? 40 : 240;
+      e.vx += ca*kb; e.vy += sa*kb;
+      if(s.contam) contaminate(e, s.dmg);
+    }
+  }
+  return false;
+}
+
+/* whirlpools drag shapes inward and hold them back; the big one may also bite and throw rogue waves */
+function whirlStep(z, dt, p){
+  if(z.follow){ z.x = p.x; z.y = p.y; }
+  z.life -= dt; z.acc += dt; z.spin += dt*3;
+  const inside = gridQuery(z.x,z.y,z.r+20).filter(e => !e.dead && dist2(e.x,e.y,z.x,z.y) < z.r*z.r);
+  for(const e of inside){
+    if(!e.boss){
+      const dx = z.x-e.x, dy = z.y-e.y, d = Math.hypot(dx,dy) || 1;
+      if(d > 14){ e.x += dx/d*z.pull*dt; e.y += dy/d*z.pull*dt; }
+    }
+    e.slow = Math.max(e.slow, z.slow); e.slowT = Math.max(e.slowT, 0.3);
+  }
+  if(z.tick && z.acc >= 0.5){
+    z.acc = 0;
+    for(const e of inside) dealDamage(e, z.tick, {color:z.color, el:'water'});
+  }
+  if(z.rogue){
+    z.rogueT -= dt;
+    if(z.rogueT <= 0){   /* Contamination with Whirlpool: a rogue wave rolls out every 3s */
+      z.rogueT = 3;
+      surge({x:z.x, y:z.y, follow:z.follow, maxR:z.r*1.8, speed:520, band:30, dmg:z.rogue, el:'water', color:'#9fd0ff', contam:true});
+    }
+  }
+  return z.life <= 0;
+}
+
+function drawWhirl(z){
+  const f = Math.min(1, (z.max-z.life)*4) * Math.min(1, z.life*3);
+  ctx.save();
+  ctx.globalAlpha = 0.16*f; ctx.fillStyle = z.color;
+  ctx.beginPath(); ctx.arc(z.x,z.y,z.r,0,TAU); ctx.fill();
+  ctx.strokeStyle = '#9fd0ff'; ctx.lineWidth = 2;
+  for(let k=0;k<4;k++){   /* spiral arms */
+    ctx.globalAlpha = 0.45*f;
+    ctx.beginPath();
+    for(let t=0;t<=1;t+=0.05){
+      const ang = z.spin + k*TAU/4 + t*2.6, rr = z.r*(1-t*0.85);
+      const px = z.x+Math.cos(ang)*rr, py = z.y+Math.sin(ang)*rr;
+      t ? ctx.lineTo(px,py) : ctx.moveTo(px,py);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawWave(s){
+  const f = Math.min(1, s.life/s.max*2.5, (s.max-s.life)*8), w = s.w/2, th = s.th;
+  ctx.save();
+  ctx.translate(s.x,s.y); ctx.rotate(s.a);
+  const g = ctx.createLinearGradient(-th,0,th*0.8,0);
+  g.addColorStop(0, hexA('#2f8fe0', 0.05*f)); g.addColorStop(0.7, hexA('#2f8fe0', 0.45*f)); g.addColorStop(1, hexA('#9fd0ff', 0.7*f));
+  ctx.fillStyle = g;
+  ctx.beginPath();   /* a curling band, crest leading */
+  ctx.moveTo(-th*0.2, -w);
+  ctx.quadraticCurveTo(th*1.3, 0, -th*0.2, w);
+  ctx.lineTo(-th*1.1, w*0.92);
+  ctx.quadraticCurveTo(0, 0, -th*1.1, -w*0.92);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 0.85*f; ctx.strokeStyle = '#e8f5ff'; ctx.lineWidth = 2;   /* foam on the crest */
+  ctx.beginPath(); ctx.moveTo(-th*0.2, -w); ctx.quadraticCurveTo(th*1.3, 0, -th*0.2, w); ctx.stroke();
+  ctx.restore();
+}
+
+/* Rainfall droplet */
+function drawDroplet(s){
+  drawFallMark(s, '#2f8fe0');
+  const a = Math.atan2(s.vy,s.vx);
+  ctx.save();
+  ctx.translate(s.x,s.y); ctx.rotate(a);
+  ctx.globalAlpha = 0.3; ctx.fillStyle = '#9fd0ff';
+  ctx.beginPath(); ctx.moveTo(-s.r*7,0); ctx.lineTo(0,-s.r*0.8); ctx.lineTo(0,s.r*0.8); ctx.closePath(); ctx.fill();
+  const g = ctx.createRadialGradient(-s.r*0.3,-s.r*0.3,s.r*0.1, 0,0,s.r);
+  g.addColorStop(0,'#ffffff'); g.addColorStop(0.5,'#7fc4ff'); g.addColorStop(1,'#1d5fa8');
+  ctx.globalAlpha = 1; ctx.fillStyle = g;
+  ctx.beginPath(); ctx.moveTo(s.r*1.8,0); ctx.arc(0,0,s.r,0.9,-0.9+TAU); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+const tsunami = {
+  key:'tsunami',
+  name:'Tsunami', el:'water', color:'#2f8fe0', kind:'Wave · Water',
+  blurb:'A giant wave rolls out the way you are moving, sweeping a wide band of the field.',
+  base:{cd:4, dmg:40, count:1, size:1},
+  levels:[
+    {at:[2,6,10,14], stat:'cd',    mul:0.9},
+    {at:[3,7,11],    stat:'dmg',   mul:1.3},
+    {at:[4,8,12],    stat:'size',  mul:1.15},
+    {at:[5,9,13],    stat:'count', add:1}
+  ],
+  t7:[
+    {id:'whirl', name:'Whirlpool', txt:'Waves merge into <em>one whirlpool around you</em> for 3s that drags shapes in; each wave merged adds <em>+10% damage and size</em>.'},
+    {id:'rain',  name:'Rainfall',  txt:'Call <em>giant droplets</em> down onto clusters instead — <em>2 per wave</em>, each hitting for <em>1.5×</em>.'}
+  ],
+  evolve:{name:'Contamination', txt:'Waves roll out in <em>four directions</em> and poison for <em>30% over 5s</em>.'},
+
+  icon:`<path d="M2 15c3 0 3-4 6-4s3 4 6 4 3-4 6-4"/><path d="M2 19c3 0 3-3 6-3s3 3 6 3 3-3 6-3"/><path d="M13 8c0-3 3-5 7-4-2.4.2-3.4 2-2.4 4"/>`,
+  orbit:{col:'#2f8fe0', glow:'#9fd0ff', tilt:-2.20, speed: 1.15, rx:24, ry: 9.5, ph:3.0, layer:7},
+  core:{hi:'#e8f5ff', mid:'#2f8fe0', lo:'#0b2f5c', rim:'#061830', n1:'#1d5fa8', n2:'#9fd0ff', spark:'#ffffff'},
+
+  modify(o, has, M){
+    if(has('whirl')) o.whirl = true;
+    if(has('rain'))  o.rain = true;
+    if(has('evolve')) o.contam = true;
+  },
+  cast: castTsunami,
+
+  shots:{ wave:{ step: waveStep, draw: drawWave } },
+  falls:{ drop: drawDroplet },
+  zones:{ whirl:{ layer:'under', step: whirlStep, draw: drawWhirl } }
+};
+
+/* ==== js/spells/index.js ==== */
+/* ============================ spell registry ============================
+   Every magic is one file in this folder exporting a spell object (see fireball.js for the shape).
+   To add a magic: write the file, import it here, and add it to SPELL_LIST.
+   SPELL_LIST order = start-screen order, HUD order, and the order spells are cast each frame. */
+
+
+
+
+
+
+
+
+
+
+
+const SPELL_LIST = [fireball, lightray, icewave, imps, windblade, chain, earth, tsunami];
+const SPELL_DEFS = {};
+for(const d of SPELL_LIST) SPELL_DEFS[d.key] = d;
+const SPELL_KEYS = Object.keys(SPELL_DEFS);
+
+/* type name -> {step, expire?, draw} for everything in S.shots; {step, draw, layer} for S.zones */
+const SHOT_TYPES = Object.assign({}, SHARED_SHOTS, ...SPELL_LIST.map(d => d.shots || {}));
+const ZONE_TYPES = Object.assign({}, SHARED_ZONES, ...SPELL_LIST.map(d => d.zones || {}));
+/* skyFall kind -> draw (meteor, droplet) */
+const FALL_LOOKS = Object.assign({}, ...SPELL_LIST.map(d => d.falls || {}));
+
+/* ============================ spell stats ============================ */
+/* a spell's numbers at level L from its level rules alone — no artifacts, no talents.
+   (mul = multiply, add = add; repeated multipliers compound) */
+function baseAt(key, L){
+  const d = SPELL_DEFS[key], o = Object.assign({}, d.base);
+  for(const r of d.levels) for(const at of r.at){
+    if(at > L) continue;
+    if(r.mul) o[r.stat] *= r.mul; else o[r.stat] += r.add;
+  }
+  return o;
+}
+
+/* the live numbers a cast uses: level rules, then general artifacts, then the spell's own
+   talents and bound artifacts (modify), then cooldown and damage multipliers */
+function stats(key){
+  const sp = S.spells[key]; if(!sp) return null;
+  const d = SPELL_DEFS[key], M = S.mods;
+  const has = id => sp.t7===id || sp.t15===id;   /* two of the three talents, picked at levels 7 and 15 */
+  const o = baseAt(key, sp.lv);
+  o.lv = sp.lv; o.color = d.color; o.el = d.el;
+  if('count'  in o) o.count  += M.count;
+  if('radius' in o) o.radius *= M.area;
+  if('size'   in o) o.size   *= M.area;
+  d.modify(o, has, M);
+  o.cd *= M.cd;
+  o.dmgMult = M.dmg;
+  return o;
+}
+
+/* short live description for cards */
+function describe(key, lvOverride){
+  const sp = S.spells[key]; if(!sp) return '';
+  const saved = sp.lv;
+  if(lvOverride) sp.lv = lvOverride;
+  const st = stats(key);
+  sp.lv = saved;
+  const n = v => Math.round(v), parts = [`${n(st.dmg*st.dmgMult)} dmg`];
+  if(st.count  != null) parts.push(`×${st.count}`);
+  if(st.radius != null) parts.push(`r${n(st.radius)}`);
+  if(st.pierce != null) parts.push(`pierce ${st.pierce}`);
+  if(st.jumps  != null) parts.push(`${st.jumps} jumps`);
+  if(st.dur    != null) parts.push(`${st.dur.toFixed(1)}s`);
+  if(st.size   != null) parts.push(`size ×${st.size.toFixed(2)}`);
+  parts.push(`every ${st.cd.toFixed(2)}s`);
+  return parts.join(' · ');
+}
+
+/* the three talents of a magic: its two level-7 talents plus its evolution */
+const upgradesOf = key => { const d = SPELL_DEFS[key]; return [...d.t7, {id:'evolve', ...d.evolve}]; };
+const upgradeName = (key, id) => (upgradesOf(key).find(u => u.id===id) || {}).name;
+
+/* ==== js/game/player.js ==== */
+/* The conjurer: creation, movement, and taking damage. */
+
+
+
+
+
+function newPlayer(){
+  return {x:0,y:0,vx:0,vy:0,hp:PLAYER.hp,maxHp:PLAYER.hp,r:PLAYER.r,dir:{x:1,y:0},
+          look:{x:1,y:0}, blink:0, blinkT:rnd(4,1.5),
+          level:1,xp:0,xpNext:PLAYER.xpFirst,iframe:0,walk:0,facing:1,bubbleT:0,bubbleN:0};
+}
+
+function updatePlayer(dt){
+  const p = S.player, M = S.mods;
+  const iv = inputVec();
+  const spd = PLAYER.speed * M.speed;
+  p.vx = iv.x*spd; p.vy = iv.y*spd;
+  p.x += p.vx*dt; p.y += p.vy*dt;
+  if(iv.x||iv.y){ p.dir.x=iv.x; p.dir.y=iv.y; p.walk += dt*9; if(Math.abs(iv.x)>0.1) p.facing = iv.x>0?1:-1; }
+  else p.walk += dt*1.6;
+  p.iframe = Math.max(0, p.iframe-dt);
+  if(M.regen) p.hp = Math.min(p.maxHp, p.hp + M.regen*dt);
+}
+
+function hurtPlayer(raw){
+  const p = S.player;
+  const dmg = raw * S.mods.dr;
+  p.hp -= dmg;
+  p.iframe = PLAYER.iframe;
+  S.hitFlash = 1;
+  S.shake = Math.max(S.shake, 7);
+  S.nums.push({x:p.x, y:p.y-20, v:-40, t:0.7, txt:'-'+Math.round(dmg), c:'#ef476f', big:true});
+}
+
+/* ==== js/data/waves.js ==== */
+/* The wave cycle: each wave has its own enemy shape, colour and boss. After the 8th it repeats ("refracted"). */
+
+const WAVES = [
+  {shape:'tri',    label:'SHARDS',     accent:'#ef476f', boss:'THE GREAT SHARD',      bossKind:'tri'},
+  {shape:'square', label:'BULWARKS',   accent:'#f4a261', boss:'THE MONOLITH',         bossKind:'square'},
+  {shape:'circle', label:'MOTES',      accent:'#9bd1e5', boss:'THE PALE ORB',         bossKind:'circle'},
+  {shape:'pent',   label:'SENTINELS',  accent:'#c8a2ff', boss:'THE INVERTED SENTINEL',bossKind:'invpent'},
+  {shape:'hex',    label:'COMBS',      accent:'#7ee081', boss:'HEXLOCK',              bossKind:'hexagram'},
+  {shape:'diamond',label:'SLIVERS',    accent:'#ffd166', boss:'TESSERACT',            bossKind:'nested'},
+  {shape:'star',   label:'SIGILS',     accent:'#ff8fab', boss:'NOVA SIGIL',           bossKind:'nova'},
+  {shape:'mix',    label:'THE UNMADE', accent:'#dcdcdc', boss:'THE UNMADE',           bossKind:'unmade'}
+];
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
+const roman = n => ROMAN[n-1] || String(n);
+const waveDef = w => WAVES[w % WAVES.length];
+
+/* contact radius of each ordinary enemy shape */
+const SHAPE_R = {tri:13, square:12, circle:11, pent:12.5, hex:12.5, diamond:11.5, star:13, mix:12};
+
+/* ==== js/game/difficulty.js ==== */
+/* How tough and how numerous the horde is at any moment. Dials are in js/config.js.
+   Enemy health tracks the clock (not the wave); S.wave counts bosses killed. */
+
+
+
+function hpMul(){
+  const mins = S.time/60;
+  /* softened exponential: steep through the first few minutes, tapering after that
+     so a long run stays winnable instead of hitting a wall of unkillable shapes */
+  return Math.pow(hpGrowth(), Math.pow(mins, HP_RAMP_SOFTEN));
+}
+/* growth steps up after the 1st, 3rd, 5th... boss */
+function hpGrowth(){ return HP_GROWTH_PER_MIN + HP_GROWTH_STEP*Math.floor((S.wave+1)/2); }
+/* spawn rate steps up after the 2nd, 4th, 6th... boss */
+function spawnBoost(){ return Math.pow(SPAWN_STEP, Math.floor(S.wave/2)); }
+function hpAt(){ return ENEMY_START_HP * hpMul(); }
+
+/* ordinary enemy stats for wave w (elites and bosses scale these, see spawning.js) */
+function waveScale(w){
+  return {
+    hp:    hpAt(),
+    speed: Math.min(44 + w*3.2, 96),
+    dmg:   6 + w*3.2,
+    xp:    (1 + Math.floor(w*0.55)) * Math.sqrt(hpMul())
+  };
+}
+
+/* enemies arriving per second right now */
+function spawnRate(){
+  const w = S.wave;
+  const prog = S.bossActive ? 1 : S.waveTime/S.waveLen;
+  /* the horde thickens much faster than it toughens */
+  let rate = (1.9 + w*1.15) * (0.6 + prog*1.0) * (S.quick?1.8:1) * SPAWN_SCALE * spawnBoost();
+  if(S.bossActive) rate *= 0.45;
+  return rate;
+}
+
+/* seconds between elites in wave w */
+const eliteInterval = w => Math.max(4.5, 15 - w*1.3);
+
+/* boss health for wave w: early bosses flatter, late curve unchanged */
+function bossHp(w, tier){ return hpAt() * (34 + w*7) * (1 + tier*0.45); }
+
+/* ==== js/game/spawning.js ==== */
+/* Where and when enemies appear: the wave clock, the steady stream, elites, and bosses.
+   Enemy stats come from difficulty.js; wave looks from data/waves.js. */
+
+
+
+
+
+
+
+
+let spawnAcc = 0, eliteAcc = 0;   /* carried over between runs, as they always have been */
+
+function updateSpawning(dt){
+  if(!S.bossActive){
+    S.waveTime += dt;
+    if(S.waveTime >= S.waveLen) spawnBoss();
+  }
+  spawnTick(dt);
+}
+
+function spawnTick(dt){
+  const w = S.wave;
+  const rate = spawnRate();
+  const cap = ENEMY_CAP;
+  spawnAcc += rate*dt;
+  while(spawnAcc >= 1){
+    spawnAcc -= 1;
+    if(S.enemies.length < cap) spawnEnemy();
+  }
+  eliteAcc += dt;
+  const ei = eliteInterval(w);
+  if(eliteAcc > ei && !S.bossActive && S.waveTime > 20){ eliteAcc = 0; if(S.enemies.length<cap) spawnEnemy(null,true); }
+}
+
+/* an ordinary enemy (or an elite) on a ring just beyond the screen */
+function spawnEnemy(kind, elite){
+  const w = S.wave, sc = waveScale(w), d = waveDef(w);
+  const shape = kind || (d.shape==='mix' ? pick(['tri','square','circle','pent','hex','diamond','star']) : d.shape);
+  const ang = rnd(TAU);
+  const rad = Math.max(view.w,view.h)*0.62 + rnd(140,40);
+  const bearsRelic = !!(elite && !S.eliteRelic);    /* one relic-bearing elite per wave */
+  if(bearsRelic) S.eliteRelic = true;
+  const e = {
+    x: S.player.x + Math.cos(ang)*rad,
+    y: S.player.y + Math.sin(ang)*rad,
+    vx:0, vy:0, shape, accent: d.accent,
+    r: SHAPE_R[shape] * (elite?1.7:1),
+    hp: sc.hp*(elite?2.6:1), maxHp: sc.hp*(elite?2.6:1),
+    speed: sc.speed*(elite?0.75:1)*rnd(1.1,0.9),
+    dmg: sc.dmg*(elite?1.4:1), xp: sc.xp*(elite?9:1),
+    rot: rnd(TAU), spin: rnd(1.4,-1.4), elite:!!elite,
+    relic: bearsRelic,
+    frozen:0, slow:0, slowT:0, held:0, expose:0, flash:0, hitCd:0, dead:false, boss:false,
+    stackT:0, stackN:0
+  };
+  S.enemies.push(e);
+  return e;
+}
+
+function spawnBoss(){
+  const w = S.wave, d = waveDef(w), sc = waveScale(w);
+  const tier = Math.floor(w / WAVES.length);
+  const ang = rnd(TAU), rad = Math.max(view.w,view.h)*0.6;
+  const hp = bossHp(w, tier);
+  const b = {
+    x: S.player.x+Math.cos(ang)*rad, y: S.player.y+Math.sin(ang)*rad,
+    vx:0, vy:0, shape:'boss', bossKind:d.bossKind, accent:d.accent, name:d.boss,
+    r: 56 + w*1.8, hp, maxHp:hp,
+    speed: Math.min(34 + w*1.4, 62), dmg: sc.dmg*1.9, xp: 120 + w*45,
+    rot:0, spin:0.5, boss:true, dead:false,
+    frozen:0, slow:0, slowT:0, held:0, expose:0, flash:0, hitCd:0,
+    stackT:0, stackN:0, atk: 4.5, phase:0, dash:0, minion:3
+  };
+  S.enemies.push(b);
+  S.boss = b; S.bossActive = true;
+  for(let i=0;i<40;i++) burst(b.x,b.y, d.accent, 3);
+  S.shake = Math.max(S.shake, 14);
+  return b;
+}
+
+/* ==== js/game/abilities.js ==== */
+/* Runs the magic you own each frame: per-spell passives, casting on cooldown,
+   and stepping every shot (S.shots) and zone (S.zones) by its registered type. */
+
+
+
+/* per-frame spell hooks that run before casting (Cold Aura) */
+function updateSpellPassives(dt){
+  for(const d of SPELL_LIST) if(d.update && S.spells[d.key]) d.update(dt, stats(d.key));
+}
+
+function updateCasting(dt){
+  for(const key of SPELL_KEYS){
+    const sp = S.spells[key]; if(!sp) continue;
+    sp.cd -= dt;
+    if(sp.cd<=0){
+      const st = stats(key);
+      sp.cd = st.cd + (SPELL_DEFS[key].cast(st) || 0);   /* a cast may hold its cooldown back (Whirlpool) */
+    }
+  }
+}
+
+function updateShots(dt){
+  for(let i=S.shots.length-1;i>=0;i--){
+    const s = S.shots[i], T = SHOT_TYPES[s.type];
+    s.life -= dt;
+    /* end of life: the type may react (blast, land, burst) or keep flying (Monsoon's return) */
+    if(s.life <= 0 && !(T.expire && T.expire(s))){ S.shots.splice(i,1); continue; }
+    if(T.step(s, dt)) S.shots.splice(i,1);
+  }
+}
+
+function updateZones(dt){
+  const p = S.player;
+  for(let i=S.zones.length-1;i>=0;i--){
+    const z = S.zones[i];
+    if(ZONE_TYPES[z.type].step(z, dt, p)) S.zones.splice(i,1);
+  }
+  for(const d of SPELL_LIST) if(d.afterZones) d.afterZones();
+}
+
+/* ==== js/game/enemies.js ==== */
+/* Enemy behaviour each frame: status timers, chasing, crowd separation, contact damage,
+   boss attacks, and the boss's projectiles. */
+
+
+
+
+
+
+
+
+
+function updateEnemies(dt){
+  const p = S.player;
+  for(let i=0;i<S.enemies.length;i++){
+    const e = S.enemies[i];
+    if(e.dead) continue;
+    e.rot += e.spin*dt;
+    e.flash = Math.max(0, e.flash-dt);
+    e.slowT = Math.max(0, e.slowT-dt); if(e.slowT<=0) e.slow=0;
+    e.hitCd = Math.max(0, e.hitCd-dt);
+    /* element timers */
+    if(e.blindT>0) e.blindT -= dt;
+    if(e.fearT>0)  e.fearT  -= dt;
+    if(e.soakT>0)  e.soakT  -= dt;
+    if(e.shockT>0) e.shockT -= dt;
+    if(e.windT>0)  e.windT  -= dt;
+    if(e.rootT>0)  e.rootT  -= dt;
+    if(e.burnT>0){ e.burnT-=dt; e.burnAcc=(e.burnAcc||0)+dt; if(e.burnAcc>=0.4){e.burnAcc=0; dealDamage(e, e.burnDmg*0.4, {color:'#ff6b35'});} }
+    if(e.toxT>0){ e.toxT-=dt; e.toxAcc=(e.toxAcc||0)+dt;
+      if(e.toxAcc>=0.5){ e.toxAcc=0; dealDamage(e, e.toxDmg, {color:'#b7f050'}); if(e.dead) continue; } }
+    if(e.stackT>0){ e.stackT-=dt; if(e.stackT<=0) e.stackN=0; }
+    e.inPool = false;
+
+    if(e.boss) bossBehave(e, dt);
+
+    let mv = e.rootT>0 ? 0 : 1 - e.slow;          /* earth holds it in place; ice slows it */
+
+    const dx = p.x-e.x, dy = p.y-e.y;
+    const d = Math.hypot(dx,dy) || 1;
+    let ax = dx/d, ay = dy/d;
+    if(e.fearT>0){ ax = -ax; ay = -ay; }          /* dark: it runs from you */
+    if(e.windT>0){                                 /* wind: it staggers about */
+      e.windA += rnd(7,-7)*dt;
+      ax = Math.cos(e.windA); ay = Math.sin(e.windA); mv *= 0.6;
+    }
+
+    /* separation */
+    if(!e.boss){
+      const near = gridQuery(e.x,e.y, e.r*2.1);
+      let sx=0, sy=0;
+      for(let j=0;j<near.length;j++){
+        const o = near[j]; if(o===e||o.dead) continue;
+        const ox = e.x-o.x, oy = e.y-o.y;
+        const od2 = ox*ox+oy*oy, rr = (e.r+o.r)*0.92;
+        if(od2 < rr*rr && od2 > 0.01){ const od = Math.sqrt(od2); sx += ox/od*(1-od/rr); sy += oy/od*(1-od/rr); }
+      }
+      ax += sx*1.5; ay += sy*1.5;
+      const m = Math.hypot(ax,ay)||1; ax/=m; ay/=m;
+    }
+
+    e.x += (ax*e.speed*mv + e.vx)*dt;
+    e.y += (ay*e.speed*mv + e.vy)*dt;
+    e.vx *= Math.pow(0.02, dt); e.vy *= Math.pow(0.02, dt);
+
+    /* contact */
+    const cd = e.r + p.r;
+    if(dist2(e.x,e.y,p.x,p.y) < cd*cd && e.hitCd<=0 && p.iframe<=0){
+      e.hitCd = 0.7;
+      if(e.blindT>0 && Math.random() < EL.blindChance) burst(e.x,e.y,'#fff1a8',4);   /* light: it misses */
+      else hurtPlayer(e.dmg);
+    }
+  }
+}
+
+/* bosses alternate a radial volley (from the 2nd wave on) and a charge that calls minions */
+function bossBehave(b, dt){
+  b.atk -= dt;
+  b.rot += 0.55*dt;
+  if(b.dash>0){ b.dash -= dt; }
+  if(b.atk<=0){
+    b.atk = S.quick ? 3.6 : 4.4;
+    b.phase++;
+    const p = S.player;
+    if(b.phase % 2 === 1 && S.wave>=1){
+      /* radial volley */
+      const n = 6 + Math.min(10, S.wave);
+      const base = Math.atan2(p.y-b.y, p.x-b.x);
+      for(let i=0;i<n;i++){
+        const a = base + i*TAU/n;
+        S.eshots.push({x:b.x,y:b.y,vx:Math.cos(a)*165,vy:Math.sin(a)*165,r:7,dmg:b.dmg*0.55,life:4.6,c:b.accent});
+      }
+      S.shake = Math.max(S.shake, 6);
+    } else {
+      /* charge */
+      const p2 = S.player;
+      const a = Math.atan2(p2.y-b.y, p2.x-b.x);
+      b.vx = Math.cos(a)*330; b.vy = Math.sin(a)*330; b.dash = 0.9;
+      for(let i=0;i<b.minion;i++) spawnEnemy();
+    }
+  }
+}
+
+/* boss projectiles */
+function updateEShots(dt){
+  const p = S.player;
+  for(let i=S.eshots.length-1;i>=0;i--){
+    const s = S.eshots[i];
+    s.life -= dt; s.x += s.vx*dt; s.y += s.vy*dt;
+    if(s.life<=0){ S.eshots.splice(i,1); continue; }
+    const rr = s.r + p.r;
+    if(dist2(s.x,s.y,p.x,p.y) < rr*rr){
+      if(p.iframe<=0) hurtPlayer(s.dmg);
+      burst(s.x,s.y,s.c,6);
+      S.eshots.splice(i,1);
+    }
+  }
+}
+
+/* drop the dead, and anything that has wandered far off the field */
+function cleanupEnemies(){
+  const p = S.player;
+  for(let i=S.enemies.length-1;i>=0;i--){
+    const e=S.enemies[i];
+    if(e.dead){ S.enemies.splice(i,1); continue; }
+    if(dist2(e.x,e.y,p.x,p.y) > 2600*2600) S.enemies.splice(i,1);
+  }
+}
+
+/* ==== js/storage/save.js ==== */
+/* Everything the game keeps between visits. Today that is only the best run.
+   All localStorage access goes through here; failures (private mode, blocked storage) are ignored. */
+
+const BEST_KEY = 'nucgrim.best';
+
+/* the best run so far, or null */
+function loadBest(){
+  try{
+    const raw = localStorage.getItem(BEST_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+
+/* store rec ({time, kills, wave, level}) if it survived longer than the stored best */
+function saveBestIfBetter(rec){
+  try{
+    const raw = localStorage.getItem(BEST_KEY);
+    const b = raw ? JSON.parse(raw) : null;
+    if(!b || rec.time > b.time) localStorage.setItem(BEST_KEY, JSON.stringify(rec));
+  }catch(e){}
+}
+
+/* ==== js/game/game.js ==== */
+/* A run from start to finish: setting it up, one simulation step, and its end.
+   update(dt) is the whole simulation in order; render/renderer.js draws the result. */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function newGame(){
+  S.running=true; S.over=false; S.paused=false;
+  S.t=0; S.time=0; S.kills=0; S.wave=0; S.waveTime=0;
+  S.waveLen = S.quick ? WAVE_LEN.quick : WAVE_LEN.normal;
+  S.bossActive=false; S.boss=null; S.shake=0; S.hitFlash=0;
+  S.player = newPlayer();
+  S.cam.x=0; S.cam.y=0;
+  S.spells={}; S.passives={};
+  S.enemies.length=0; S.shots.length=0; S.eshots.length=0;
+  S.orbs.length=0; S.zones.length=0; S.parts.length=0; S.nums.length=0;
+  S.queue.length=0; S.choiceOpen=false;
+  S.blasts.length=0; S.auraSlow=0; S.auraTick=0; S.auraPulse=0;
+  computeMods();
+  emit('spells:changed');
+  emit('artifacts:changed');
+  S.eliteRelic = false;
+  /* pick a starting magic first (it also colours your core), then a relic */
+  S.queue.push({kind:'startspell'});
+  S.queue.push({kind:'artifact', start:true});
+  openChoice();
+}
+
+/* the idle title-screen state, so the first frame is not an empty void */
+function resetIdle(){
+  S.running=false; S.over=false; S.paused=false; S.choiceOpen=false;
+  S.player = newPlayer();
+  computeMods();
+  S.spells = {}; S.passives = {};
+  emit('spells:changed');
+  emit('artifacts:changed');
+}
+
+function update(dt){
+  S.t += dt; S.time += dt;
+  const p = S.player;
+
+  updatePlayer(dt);
+
+  S.cam.x = lerp(S.cam.x, p.x, 1-Math.pow(0.001,dt));
+  S.cam.y = lerp(S.cam.y, p.y, 1-Math.pow(0.001,dt));
+  S.shake = Math.max(0, S.shake - dt*42);
+  S.hitFlash = Math.max(0, S.hitFlash - dt*3);
+
+  gridBuild();
+  updateSpellPassives(dt);
+
+  updateSpawning(dt);
+  updateCasting(dt);
+
+  updateEnemies(dt);
+  updateShots(dt);
+  updateEShots(dt);
+  updateZones(dt);
+  processBlasts();
+  updateOrbs(dt);
+  updateEffects(dt);
+  cleanupEnemies();
+
+  if(p.hp<=0) gameOver();
+}
+
+function gameOver(){
+  if(S.over) return;
+  S.over = true; S.running = false;
+  const p = S.player;
+  const rec = {time:S.time, kills:S.kills, wave:S.wave+1, level:p.level};
+  saveBestIfBetter(rec);
+  emit('run:over', rec);
+}
+
+/* ==== js/ui/dom.js ==== */
+/* DOM lookup shorthand for the UI modules. */
+const el = id => document.getElementById(id);
+
+/* ==== js/ui/icons.js ==== */
+/* Inline SVG glyphs for magics (from each spell file's `icon`) and artifacts (below). */
+
+
+const ARTIFACT_ICONS = {
+  power:    `<path d="M12 3 L5 13 h6 l-1 8 L19 11 h-6z"/>`,
+  vitality: `<path d="M12 20 C4 14 4 7 8.5 5.5 C11 4.6 12 7 12 7 s1-2.4 3.5-1.5C20 7 20 14 12 20z"/>`,
+  magnitude:`<circle cx="12" cy="12" r="4"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/>`,
+  multicast:`<path d="M3 19 L14 8"/><path d="M3 12 L11 4"/><path d="M8 21 L18 11"/><path d="M12 4h8v8"/>`,
+  duration: `<circle cx="12" cy="12" r="8.2"/><path d="M12 7v5.4l3.6 2.2"/>`,
+  haste:    `<path d="M3 8h11M3 12h8M3 16h12"/><path d="M17 6l4 6-4 6"/>`,
+  swift:    `<path d="M6 20 L13 12 L9 11 L17 4"/><path d="M14 20h6"/>`,
+  attune:   `<path d="M12 3l2.6 5.8L21 9.4l-4.6 4.3 1.2 6.3L12 17l-5.6 3 1.2-6.3L3 9.4l6.4-.6z"/>`,
+  ward:     `<path d="M12 3l7.5 3v6c0 5-3.4 8-7.5 9.5C7.9 20 4.5 17 4.5 12V6z"/>`,
+  regrowth: `<path d="M12 21v-8"/><path d="M12 13c0-4 3-6 7-6 0 4-2.6 6-7 6z"/><path d="M12 16c0-3-2.4-4.6-6-4.6 0 3 2.2 4.6 6 4.6z"/>`,
+  execlens: `<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/><path d="M8 10.5h5M10.5 8v5"/>`,
+  blood:    `<path d="M12 3.5c3.6 4.4 5.6 7.4 5.6 9.9a5.6 5.6 0 0 1-11.2 0c0-2.5 2-5.5 5.6-9.9z"/>`
+};
+
+function ico(key,color){
+  const c = color || 'currentColor';
+  const s = a => `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${a}</svg>`;
+  const body = SPELL_DEFS[key] ? SPELL_DEFS[key].icon : ARTIFACT_ICONS[key];
+  return s(body || `<circle cx="12" cy="12" r="7"/>`);
+}
+
+/* ==== js/ui/hud.js ==== */
+/* The in-run HUD: magic pips with cooldown masks, artifact slots, bars and readouts. */
+
+
+
+
+
+
+
+
+
+
+
+let pipEls = {};
+function buildPips(){
+  const wrap = el('pips'); wrap.innerHTML=''; pipEls = {};
+  for(const k of SPELL_KEYS){
+    const sp = S.spells[k]; if(!sp) continue;
+    const d = SPELL_DEFS[k];
+    const div = document.createElement('div');
+    div.className = 'pip' + (sp.t7?' tal':'');
+    div.innerHTML = `<span class="glyph">${ico(k,d.color)}<i class="cdmask"></i></span>
+                     <span class="lv${sp.lv>=15?' max':''}">${sp.lv>=15?'MAX':'LV '+sp.lv}</span>`;
+    wrap.appendChild(div);
+    pipEls[k] = div.querySelector('.cdmask');
+  }
+  el('magicCount').textContent = `${Object.keys(S.spells).length}/${MAGIC_SLOTS}`;
+}
+
+function buildSlots(){
+  const wrap = el('slots'); if(!wrap) return;
+  const held = heldArtifacts();
+  wrap.innerHTML = '';
+  for(let i=0;i<ARTIFACT_SLOTS;i++){
+    const k = held[i];
+    const div = document.createElement('div');
+    if(k){
+      const d = ARTIFACT_DEFS[k], lv = S.passives[k];
+      const col = d.req ? SPELL_DEFS[d.req].color : '#9aa6c4';
+      div.className = 'slot filled';
+      div.title = `${d.name} · rank ${lv}/${d.max}`;
+      div.innerHTML = `${ico(d.icon,col)}<span class="rk${lv>=d.max?' max':''}">${lv}</span>`;
+    } else {
+      div.className = 'slot empty';
+      div.title = 'Empty artifact slot';
+    }
+    wrap.appendChild(div);
+  }
+  el('slotCount').textContent = `${held.length}/${ARTIFACT_SLOTS}`;
+}
+
+/* chips listing magics (with talents) and artifacts — pause and game-over screens */
+function loadoutHTML(){
+  let h = '';
+  for(const k of SPELL_KEYS){
+    const sp = S.spells[k]; if(!sp) continue;
+    const d = SPELL_DEFS[k];
+    let tal = '';
+    if(sp.t7)  tal  = ' · ' + upgradeName(k, sp.t7);
+    if(sp.t15) tal += ' · ' + upgradeName(k, sp.t15);
+    h += `<span class="lo">${ico(k,d.color)} ${d.name} <b style="color:var(--bone)">Lv${sp.lv}</b>${tal}</span>`;
+  }
+  for(const k of ARTIFACT_KEYS){
+    const lv = S.passives[k]; if(!lv) continue;
+    const d = ARTIFACT_DEFS[k];
+    const col = d.req ? SPELL_DEFS[d.req].color : '#9aa6c4';
+    h += `<span class="lo">${ico(d.icon,col)} ${d.name} <b style="color:var(--bone)">R${lv}</b></span>`;
+  }
+  const free = ARTIFACT_SLOTS - heldArtifacts().length;
+  if(free>0) h += `<span class="lo" style="opacity:.55">${free} artifact slot${free>1?'s':''} empty</span>`;
+  return h;
+}
+
+/* cooldown masks every frame; text and bars ~11 times a second */
+let hudAcc = 0;
+function updateHUD(dt){
+  for(const k in pipEls){
+    const sp = S.spells[k]; if(!sp) continue;
+    const st = stats(k);
+    pipEls[k].style.transform = `scaleY(${clamp(sp.cd/Math.max(st.cd,0.001),0,1)})`;
+  }
+  hudAcc += dt; if(hudAcc < 0.09) return; hudAcc = 0;
+  const p = S.player, w = S.wave, d = waveDef(w);
+  const tier = Math.floor(w/WAVES.length);
+  el('waveName').textContent = `WAVE ${roman(w+1)} · ${tier?'REFRACTED ':''}${d.label}`;
+  const left = Math.max(0, S.waveLen - S.waveTime);
+  el('waveSub').textContent = S.bossActive ? 'boss engaged' : `${d.boss.toLowerCase()} in ${Math.floor(left/60)}:${String(Math.floor(left%60)).padStart(2,'0')}`;
+  el('mWave').style.width = (S.bossActive?100:(S.waveTime/S.waveLen*100))+'%';
+  el('mHp').style.width = clamp(p.hp/p.maxHp,0,1)*100+'%';
+  el('nHp').textContent = `${Math.max(0,Math.ceil(p.hp))}/${Math.round(p.maxHp)}`;
+  el('mXp').style.width = clamp(p.xp/p.xpNext,0,1)*100+'%';
+  el('nXp').textContent = `${Math.floor(p.xp)}/${p.xpNext}`;
+  el('rTime').textContent = `${Math.floor(S.time/60)}:${String(Math.floor(S.time%60)).padStart(2,'0')}`;
+  el('rKills').textContent = S.kills;
+  el('rLv').textContent = p.level;
+  const bb = el('bossbar');
+  if(S.boss && !S.boss.dead){ bb.classList.add('on'); el('bossName').textContent = S.boss.name; el('mBoss').style.width = clamp(S.boss.hp/S.boss.maxHp,0,1)*100+'%'; }
+  else bb.classList.remove('on');
+}
+
+function initHUD(){
+  on('spells:changed', buildPips);
+  on('artifacts:changed', buildSlots);
+}
+
+/* ==== js/render/world.js ==== */
+/* Drawing everything that lives on the field besides enemies and the player:
+   spell zones and shots (each type draws itself, see js/spells), mana orbs, particles, numbers. */
+
+
+
+
+
+/* ground layer: spell auras, then zones registered as layer 'under' (pools, rifts, whirlpools, craters) */
+function drawZonesUnder(){
+  for(const d of SPELL_LIST){
+    const sp = S.spells[d.key];
+    if(sp && d.drawUnder && S.player) d.drawUnder(sp);
+  }
+  for(const z of S.zones){
+    const T = ZONE_TYPES[z.type];
+    if(T.layer==='under') T.draw(z);
+  }
+}
+
+/* top layer: rings and beams */
+function drawZonesOver(){
+  for(const z of S.zones){
+    const T = ZONE_TYPES[z.type];
+    if(T.layer==='over') T.draw(z);
+  }
+}
+
+function drawShots(){
+  for(const s of S.shots){
+    if(s.type==='fall') FALL_LOOKS[s.kind](s);
+    else SHOT_TYPES[s.type].draw(s);
+  }
+}
+
+/* mana orbs, by tier */
+const ORB_COL = ['#5ad2f4','#ffd166','#ff5d8f'];
+function drawOrbs(){
+  for(const o of S.orbs){
+    const c = ORB_COL[o.t];
+    const s = (o.t===0?3:o.t===1?4:5.6) + Math.sin(o.ph)*0.5;
+    ctx.save();
+    ctx.globalAlpha=0.28; ctx.fillStyle=c;
+    ctx.beginPath(); ctx.arc(o.x,o.y,s*2.4,0,TAU); ctx.fill();
+    ctx.globalAlpha=1; ctx.fillStyle=c;
+    ctx.translate(o.x,o.y); ctx.rotate(Math.PI/4);
+    ctx.fillRect(-s/1.4,-s/1.4,s*1.4,s*1.4);
+    ctx.restore();
+  }
+}
+
+function drawParticles(){
+  for(const q of S.parts){
+    const a = clamp(q.t/q.max,0,1);
+    ctx.save();
+    ctx.globalAlpha = a;
+    if(q.ring){
+      ctx.strokeStyle=q.c; ctx.lineWidth=2.4*a+0.6;
+      ctx.beginPath(); ctx.arc(q.x,q.y, lerp(q.r0,q.r,1-a), 0, TAU); ctx.stroke();
+    } else if(q.zap){   /* electric arc */
+      ctx.strokeStyle=q.c; ctx.lineWidth=1.8;
+      ctx.beginPath(); q.pts.forEach(([x,y],i)=> i ? ctx.lineTo(x,y) : ctx.moveTo(x,y)); ctx.stroke();
+    } else {
+      ctx.fillStyle=q.c;
+      ctx.beginPath(); ctx.arc(q.x,q.y,q.r*a,0,TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+function drawNumbers(){
+  ctx.save();
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(const n of S.nums){
+    const a = clamp(n.t/0.62,0,1);
+    ctx.globalAlpha = a;
+    ctx.font = `${n.big?700:400} ${n.big?14:11}px "JetBrains Mono", monospace`;
+    ctx.fillStyle = n.c;
+    ctx.fillText(n.txt, n.x, n.y);
+  }
+  ctx.restore();
+}
+
+/* ==== js/render/enemies.js ==== */
+/* Drawing enemies, bosses and boss projectiles. */
+
+
+
+
+
+function drawEnemyShape(e){
+  const r = e.r, rot = e.rot;
+  switch(e.shape){
+    case 'tri': polyPath(ctx,e.x,e.y,r,3,rot); break;
+    case 'square': polyPath(ctx,e.x,e.y,r,4,rot+Math.PI/4); break;
+    case 'circle': circPath(ctx,e.x,e.y,r); break;
+    case 'pent': polyPath(ctx,e.x,e.y,r,5,rot); break;
+    case 'hex': polyPath(ctx,e.x,e.y,r,6,rot); break;
+    case 'diamond': polyPath(ctx,e.x,e.y,r,4,rot); break;
+    case 'star': starPath(ctx,e.x,e.y,r,r*0.45,5,rot); break;
+    default: polyPath(ctx,e.x,e.y,r,4,rot);
+  }
+}
+
+/* each boss is a stack of rotating outlines; returns the path builders, outermost first */
+function drawBossShape(b){
+  const r = b.r, t = S.t;
+  const paths = [];
+  switch(b.bossKind){
+    case 'tri':
+      paths.push(()=>polyPath(ctx,b.x,b.y,r,3,t*0.4));
+      paths.push(()=>polyPath(ctx,b.x,b.y,r*0.58,3,-t*0.7+Math.PI));
+      break;
+    case 'square':
+      paths.push(()=>polyPath(ctx,b.x,b.y,r,4,t*0.3+Math.PI/4));
+      paths.push(()=>polyPath(ctx,b.x,b.y,r*0.62,4,-t*0.5));
+      break;
+    case 'circle':
+      paths.push(()=>circPath(ctx,b.x,b.y,r));
+      paths.push(()=>circPath(ctx,b.x,b.y,r*0.66));
+      paths.push(()=>{ctx.beginPath();ctx.arc(b.x,b.y,r*0.86,t*1.2,t*1.2+2.1);});
+      paths.push(()=>{ctx.beginPath();ctx.arc(b.x,b.y,r*0.86,t*1.2+Math.PI,t*1.2+Math.PI+2.1);});
+      break;
+    case 'invpent':
+      paths.push(()=>polyPath(ctx,b.x,b.y,r,5,Math.PI+t*0.25));
+      paths.push(()=>polyPath(ctx,b.x,b.y,r*0.6,5,-t*0.45));
+      paths.push(()=>starPath(ctx,b.x,b.y,r*0.82,r*0.34,5,Math.PI-t*0.25));
+      break;
+    case 'hexagram':
+      paths.push(()=>polyPath(ctx,b.x,b.y,r,3,t*0.5));
+      paths.push(()=>polyPath(ctx,b.x,b.y,r,3,-t*0.5+Math.PI));
+      paths.push(()=>polyPath(ctx,b.x,b.y,r*0.5,6,t*0.2));
+      break;
+    case 'nested':
+      for(let i=0;i<4;i++){
+        const k=i, rr = r*(1-i*0.22);
+        paths.push(()=>polyPath(ctx,b.x,b.y,rr,4,(k%2?1:-1)*t*(0.3+k*0.22)+Math.PI/4));
+      }
+      break;
+    case 'nova':{
+      const pl = 1+Math.sin(t*2.4)*0.07;
+      paths.push(()=>starPath(ctx,b.x,b.y,r*pl,r*0.42,8,t*0.3));
+      paths.push(()=>starPath(ctx,b.x,b.y,r*0.6,r*0.2,4,-t*0.6));
+      paths.push(()=>circPath(ctx,b.x,b.y,r*0.3*pl));
+      break;
+    }
+    default:
+      paths.push(()=>polyPath(ctx,b.x,b.y,r,3,t*0.4));
+      paths.push(()=>polyPath(ctx,b.x,b.y,r*0.82,4,-t*0.35));
+      paths.push(()=>polyPath(ctx,b.x,b.y,r*0.64,5,t*0.5));
+      paths.push(()=>polyPath(ctx,b.x,b.y,r*0.46,6,-t*0.65));
+      paths.push(()=>circPath(ctx,b.x,b.y,r*0.26));
+  }
+  return paths;
+}
+
+function drawEnemies(){
+  const cull = Math.max(view.w,view.h)*0.75+80;
+  ctx.lineJoin='round';
+  for(const e of S.enemies){
+    if(e.dead) continue;
+    if(Math.abs(e.x-S.cam.x) > cull || Math.abs(e.y-S.cam.y) > cull) continue;
+    /* the strongest visible status tints the shape */
+    const col = e.flash>0 ? '#ffffff' : e.rootT>0 ? '#c08a4e' : e.fearT>0 ? '#b97be6'
+              : e.shockT>0 ? '#9d92ff' : e.soakT>0 ? '#5aaaf0' : e.windT>0 ? '#8fe3a0'
+              : e.slow>0 ? '#8fdcf0' : e.toxT>0 ? '#b7f050' : e.burnT>0 ? '#ff9b5c' : e.accent;
+
+    if(e.boss){
+      const paths = drawBossShape(e);
+      ctx.save();
+      /* a boss always announces itself: a slow sigil ring outside the silhouette */
+      ctx.globalAlpha = 0.5; ctx.strokeStyle = e.accent; ctx.lineWidth = 1.2;
+      ctx.setLineDash([10,16]); ctx.lineDashOffset = -S.t*26;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r*1.3 + Math.sin(S.t*2)*3, 0, TAU); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.14; ctx.fillStyle = col;
+      paths[0](); ctx.fill();
+      ctx.globalAlpha = 0.28; ctx.strokeStyle = col; ctx.lineWidth = 7;
+      paths[0](); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.lineWidth = 2.4;
+      for(const pth of paths){ pth(); ctx.stroke(); }
+      ctx.restore();
+      continue;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = 0.22; ctx.strokeStyle = col; ctx.lineWidth = e.elite?6:4;
+    drawEnemyShape(e); ctx.stroke();
+    ctx.globalAlpha = e.flash>0 ? 1 : 0.1; ctx.fillStyle = col;
+    drawEnemyShape(e); ctx.fill();
+    ctx.globalAlpha = 1; ctx.lineWidth = e.elite?2.4:1.7;
+    ctx.strokeStyle = col;
+    drawEnemyShape(e); ctx.stroke();
+    if(e.elite){ ctx.globalAlpha=0.7; ctx.lineWidth=1; polyPath(ctx,e.x,e.y,e.r*0.5,3,-e.rot); ctx.stroke(); }
+    if(e.relic){   /* this one is carrying a relic — a gold sigil orbits it */
+      ctx.globalAlpha=0.85; ctx.strokeStyle='#ffd166'; ctx.lineWidth=1.3;
+      ctx.setLineDash([5,7]); ctx.lineDashOffset=-S.t*20;
+      ctx.beginPath(); ctx.arc(e.x,e.y,e.r*1.6,0,TAU); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#ffd166';
+      starPath(ctx, e.x, e.y-e.r*2.1, 4, 1.7, 4, S.t*1.1); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+function drawEShots(){
+  for(const s of S.eshots){
+    ctx.save();
+    ctx.globalAlpha=0.25; ctx.fillStyle=s.c;
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r*2.2,0,TAU); ctx.fill();
+    ctx.globalAlpha=1; ctx.strokeStyle=s.c; ctx.lineWidth=1.8;
+    polyPath(ctx,s.x,s.y,s.r,3,S.t*4); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* ==== js/render/player.js ==== */
+/* The conjurer: a nucleus with an elemental sphere in orbit for every magic.
+   Each spell file supplies its orbit (`orbit`) and its core palette (`core`). */
+
+
+
+
+
+/* nucleus palette before a starting magic is chosen: plain bone */
+const CORE_NONE = {hi:'#fdfaf3', mid:'#d6d0c1', lo:'#6e6a60', rim:'#14161f', n1:'#8e8878', n2:'#b8b2a2', spark:'#fff6d8'};
+
+/* orbits in paint order (orbit.layer), built on first draw */
+let orbitals = null;
+const getOrbitals = () => orbitals || (orbitals =
+  SPELL_LIST.map(d => Object.assign({key:d.key}, d.orbit)).sort((a,b) => a.layer - b.layer));
+
+function drawPlayer(){
+  const p = S.player;
+  const cp = (SPELL_DEFS[p.core] || {}).core || CORE_NONE;
+  const bob = Math.sin(p.walk*0.6)*1.3;
+  const ORBITALS = getOrbitals();
+
+  ctx.save();
+  ctx.translate(p.x, p.y + bob);
+  ctx.globalAlpha = p.iframe>0 ? (Math.floor(S.t*22)%2 ? 0.4 : 1) : 1;
+  ctx.lineCap='round'; ctx.lineJoin='round';
+
+  /* ground shadow */
+  ctx.save(); ctx.globalAlpha *= 0.32; ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.ellipse(0, 20, 13, 4, 0, 0, TAU); ctx.fill(); ctx.restore();
+
+  /* orbit paths, drawn behind the core */
+  ctx.save();
+  ctx.globalAlpha *= 0.26; ctx.strokeStyle='#e9e5da'; ctx.lineWidth=1;
+  for(const o of ORBITALS){
+    ctx.save(); ctx.rotate(o.tilt);
+    ctx.beginPath(); ctx.ellipse(0,0,o.rx,o.ry,0,0,TAU); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  /* an elemental sphere sits on each orbit; owning the magic lights it up */
+  const orbs = [];
+  for(const o of ORBITALS){
+    const owned = !!S.spells[o.key];
+    const ang = S.t*o.speed + o.ph;
+    const ex = Math.cos(ang)*o.rx, ey = Math.sin(ang)*o.ry;
+    const x = ex*Math.cos(o.tilt) - ey*Math.sin(o.tilt);
+    const y = ex*Math.sin(o.tilt) + ey*Math.cos(o.tilt);
+    orbs.push({x, y, o, owned, back: Math.sin(ang) < 0});
+  }
+
+  const paintOrb = (q)=>{
+    const {x,y,o,owned} = q;
+    const lv = owned ? S.spells[o.key].lv : 0;
+    const r = owned ? 3.6 + Math.min(lv,15)*0.16 : 2.3;
+    ctx.save();
+    if(owned){
+      ctx.globalAlpha *= 0.3;
+      ctx.fillStyle = o.glow;
+      ctx.beginPath(); ctx.arc(x,y, r*3.1, 0, TAU); ctx.fill();
+      ctx.globalAlpha = (p.iframe>0 ? 0.6 : 1);
+      ctx.fillStyle = o.col;
+      ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fill();
+      ctx.fillStyle = o.glow;
+      ctx.beginPath(); ctx.arc(x-r*0.3, y-r*0.35, r*0.42, 0, TAU); ctx.fill();
+    } else {
+      ctx.globalAlpha *= 0.35;
+      ctx.strokeStyle = '#8b887f'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.stroke();
+    }
+    ctx.restore();
+  };
+
+  orbs.filter(q=>q.back).forEach(paintOrb);        /* behind the nucleus */
+
+  /* --- nucleus --- */
+  const pulse = 1 + Math.sin(S.t*3.1)*0.05;
+  ctx.save();
+  const g = ctx.createRadialGradient(-2.5,-3,1, 0,0,11*pulse);
+  g.addColorStop(0,cp.hi); g.addColorStop(0.55,cp.mid); g.addColorStop(1,cp.lo);
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0,0,10.5*pulse,0,TAU); ctx.fill();
+  ctx.strokeStyle = cp.rim; ctx.lineWidth = 1.7;
+  ctx.beginPath(); ctx.arc(0,0,10.5*pulse,0,TAU); ctx.stroke();
+  /* packed nucleons */
+  ctx.globalAlpha *= 0.5;
+  for(let i=0;i<6;i++){
+    const a = i*TAU/6 + S.t*0.35;
+    ctx.fillStyle = i%2 ? cp.n1 : cp.n2;
+    ctx.beginPath(); ctx.arc(Math.cos(a)*4.4, Math.sin(a)*4.4, 2.5, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+  /* core spark */
+  ctx.save();
+  ctx.globalAlpha *= 0.85; ctx.fillStyle = cp.spark;
+  ctx.beginPath(); ctx.arc(0,0, 2.4 + Math.sin(S.t*5)*0.5, 0, TAU); ctx.fill();
+  ctx.restore();
+
+  orbs.filter(q=>!q.back).forEach(paintOrb);       /* in front of the nucleus */
+
+  ctx.restore();
+}
+
+/* ==== js/render/minimap.js ==== */
+/* The minimap: where the horde is, and above all where the boss is. Drawn in screen space. */
+
+
+
+
+const MM_RANGE = 2600;                     /* world units across the whole box */
+
+function drawMinimap(){
+  if(!S.running || S.over) return;
+  const p = S.player;
+  const s  = clamp(Math.min(view.w,view.h)*0.23, 96, 158);
+  const x0 = view.w - s - 14;
+  const y0 = (S.bossActive ? 132 : 104);
+  const k  = s / MM_RANGE;
+  const cx = x0 + s/2, cy = y0 + s/2;
+
+  ctx.save();
+  ctx.fillStyle = 'rgba(8,9,12,0.76)';
+  ctx.fillRect(x0, y0, s, s);
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x0, y0, s, s); ctx.clip();
+
+  /* faint world grid so movement reads */
+  ctx.strokeStyle = 'rgba(233,229,218,0.05)'; ctx.lineWidth = 1;
+  const gstep = 700*k;
+  const gx = cx - ((p.x*k) % gstep), gy = cy - ((p.y*k) % gstep);
+  for(let x=gx-gstep*3; x<x0+s+gstep; x+=gstep){ ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y0+s); ctx.stroke(); }
+  for(let y=gy-gstep*3; y<y0+s+gstep; y+=gstep){ ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x0+s,y); ctx.stroke(); }
+
+  /* the horde */
+  let offscreen = 0;
+  for(const e of S.enemies){
+    if(e.dead || e.boss) continue;
+    const mx = cx + (e.x-p.x)*k, my = cy + (e.y-p.y)*k;
+    if(mx < x0-2 || mx > x0+s+2 || my < y0-2 || my > y0+s+2){ offscreen++; continue; }
+    if(e.relic){
+      ctx.globalAlpha = 1; ctx.fillStyle = '#ffd166';
+      ctx.fillRect(mx-2, my-2, 4, 4);
+    } else if(e.elite){
+      ctx.globalAlpha = 0.95; ctx.fillStyle = '#ffffff';
+      ctx.fillRect(mx-1.5, my-1.5, 3, 3);
+    } else {
+      ctx.globalAlpha = 0.55; ctx.fillStyle = e.accent;
+      ctx.fillRect(mx-0.9, my-0.9, 1.8, 1.8);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  /* you, at the centre */
+  ctx.fillStyle = '#e9e5da';
+  ctx.beginPath(); ctx.arc(cx, cy, 2.6, 0, TAU); ctx.fill();
+  ctx.strokeStyle = 'rgba(233,229,218,0.45)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, 6.5, 0, TAU); ctx.stroke();
+
+  /* the boss — clamped to the rim when it is off the box, so its bearing always shows */
+  const b = S.boss;
+  if(b && !b.dead){
+    let mx = cx + (b.x-p.x)*k, my = cy + (b.y-p.y)*k;
+    const pad = 9;
+    const clamped = (mx < x0+pad || mx > x0+s-pad || my < y0+pad || my > y0+s-pad);
+    const ang = Math.atan2(b.y-p.y, b.x-p.x);
+    if(clamped){
+      mx = clamp(mx, x0+pad, x0+s-pad);
+      my = clamp(my, y0+pad, y0+s-pad);
+    }
+    const pulse = 1 + Math.sin(S.t*5)*0.22;
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = '#ef476f'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(mx, my, 8*pulse, 0, TAU); ctx.stroke();
+    ctx.fillStyle = '#ef476f';
+    ctx.save(); ctx.translate(mx,my); ctx.rotate(Math.PI/4);
+    ctx.fillRect(-3.4,-3.4,6.8,6.8);
+    ctx.restore();
+    if(clamped){                                  /* arrow pointing the way out */
+      ctx.save(); ctx.translate(mx,my); ctx.rotate(ang);
+      ctx.beginPath(); ctx.moveTo(11,0); ctx.lineTo(5,-4); ctx.lineTo(5,4); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+
+  /* frame + corner ticks */
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = 'rgba(233,229,218,0.20)'; ctx.lineWidth = 1;
+  ctx.strokeRect(x0+0.5, y0+0.5, s-1, s-1);
+  ctx.strokeStyle = 'rgba(233,229,218,0.5)'; ctx.lineWidth = 1.4;
+  const T = 9;
+  for(const [ax,ay,dx,dy] of [[x0,y0,1,1],[x0+s,y0,-1,1],[x0,y0+s,1,-1],[x0+s,y0+s,-1,-1]]){
+    ctx.beginPath();
+    ctx.moveTo(ax+dx*T, ay); ctx.lineTo(ax, ay); ctx.lineTo(ax, ay+dy*T);
+    ctx.stroke();
+  }
+  /* label + count of what is beyond the edge */
+  ctx.font = '9px "JetBrains Mono", monospace';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = 'rgba(233,229,218,0.42)';
+  ctx.fillText('FIELD', x0+3, y0-4);
+  if(offscreen){
+    ctx.textAlign = 'right';
+    ctx.fillText('+' + offscreen + ' beyond', x0+s-3, y0-4);
+  }
+  ctx.restore();
+}
+
+/* ==== js/render/renderer.js ==== */
+/* One frame of drawing, back to front. Reads state only — never changes the game. */
+
+
+
+
+
+
+
+
+
+
+function draw(){
+  const w = view.w, h = view.h;
+  ctx.setTransform(view.dpr,0,0,view.dpr,0,0);
+  ctx.fillStyle = '#08090c';
+  ctx.fillRect(0,0,w,h);
+
+  /* camera, with screen shake */
+  const sh = S.shake;
+  const ox = w/2 - S.cam.x + (sh?rnd(sh,-sh):0);
+  const oy = h/2 - S.cam.y + (sh?rnd(sh,-sh):0);
+
+  drawGround(ox,oy,w,h);
+
+  ctx.save();
+  ctx.translate(ox,oy);
+
+  drawZonesUnder();
+  drawOrbs();
+  drawEnemies();
+  drawEShots();
+  drawPlayer();
+  drawShots();
+  drawZonesOver();
+  drawParticles();
+  drawNumbers();
+
+  ctx.restore();
+
+  /* vignette + hit flash */
+  const g = ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.32,w/2,h/2,Math.max(w,h)*0.78);
+  g.addColorStop(0,'rgba(8,9,12,0)'); g.addColorStop(1,'rgba(4,4,6,0.82)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+  if(S.hitFlash>0){ ctx.fillStyle = `rgba(239,71,111,${S.hitFlash*0.2})`; ctx.fillRect(0,0,w,h); }
+
+  drawMinimap();
+
+  /* touch stick */
+  if(joy.active){
+    ctx.save();
+    ctx.strokeStyle='rgba(233,229,218,.18)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(joy.ox,joy.oy,52,0,TAU); ctx.stroke();
+    const jx=joy.x-joy.ox, jy=joy.y-joy.oy, m=Math.hypot(jx,jy)||1, c=Math.min(m,52);
+    ctx.fillStyle='rgba(233,229,218,.3)';
+    ctx.beginPath(); ctx.arc(joy.ox+jx/m*c, joy.oy+jy/m*c, 15, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* dotted plane + faint sigil rings anchored in world space */
+function drawGround(ox,oy,w,h){
+  const step = 64;
+  const sx = ((ox % step) + step) % step;
+  const sy = ((oy % step) + step) % step;
+  ctx.fillStyle = 'rgba(233,229,218,.052)';
+  for(let x = sx - step; x < w+step; x += step)
+    for(let y = sy - step; y < h+step; y += step)
+      ctx.fillRect(x, y, 1.4, 1.4);
+  ctx.save(); ctx.translate(ox,oy);
+  ctx.strokeStyle='rgba(233,229,218,.035)'; ctx.lineWidth=1;
+  const cx = Math.round(S.cam.x/700)*700, cy = Math.round(S.cam.y/700)*700;
+  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){
+    const x = cx+i*700, y = cy+j*700;
+    const seed = ((x*13+y*7)%5+5)%5;
+    ctx.beginPath(); ctx.arc(x,y, 120+seed*26, 0, TAU); ctx.stroke();
+    polyPath(ctx,x,y, 60+seed*12, 3+seed, S.t*0.03+seed); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ==== js/core/loop.js ==== */
+/* The frame loop: requestAnimationFrame -> update (when playing) -> HUD -> draw.
+   dt is capped at 1/25 s, so a stalled tab resumes at a crawl instead of jumping;
+   all movement, timers and cooldowns scale with dt, so speed does not depend on frame rate. */
+
+
+
+
+
+
+let last = 0, raf = 0;
+let curHidden = null;
+
+function frame(ts){
+  raf = requestAnimationFrame(frame);
+  if(!last) last = ts;
+  let dt = (ts-last)/1000; last = ts;
+  dt = Math.min(dt, 1/25);
+  const playing = S.running && !S.paused && !S.over;
+  /* no pointer on the playfield — it comes back for menus and upgrade cards */
+  if(playing !== curHidden){ curHidden = playing; cvs.style.cursor = playing ? 'none' : 'default'; }
+  if(playing){ update(dt); updateHUD(dt); }
+  draw();
+}
+
+function startLoop(){
+  last = 0;
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(frame);
+}
+
+/* ==== js/ui/choices.js ==== */
+/* The choice screen: starting magic, level-ups, talents (cards) and relics (plates).
+   Rendering only — what is offered and what a pick does live in js/game/progression.js. */
+
+
+
+
+
+
+
+
+
+
+
+/* A card must not be claimable by a movement key you happened to be holding
+   when the level-up fired: nothing is auto-focused, and picks ignore the first 300ms. */
+let pickLock = 0;
+function focusSheet(){
+  const s = el('scChoice').querySelector('.sheet');
+  if(s) s.focus({preventScroll:true});
+}
+
+function showChoice(job){
+  pickLock = performance.now() + 300;
+  if(job.kind==='levelup') renderLevelUp();
+  else if(job.kind==='startspell') renderStartSpell();
+  else if(job.kind==='artifact') renderArtifactChoice(job);
+  else renderTalent(job.key, job.tier);
+}
+
+/* after a pick: next queued choice, or back to the run */
+function closeChoice(){
+  el('scChoice').classList.remove('on');
+  if(S.queue.length) openChoice();
+  else { S.choiceOpen=false; S.paused=false; }
+}
+
+function card(opts){
+  const b = document.createElement('button');
+  b.className = 'card' + (opts.talent?' talent':'') + (opts.relic?' relic':'');
+  b.type = 'button';
+  b.innerHTML =
+    `<span class="accent" style="background:${opts.color}"></span>
+     <span class="body">
+       <span class="head">${ico(opts.icon, opts.color)}<span>
+          <span class="kind">${opts.kind}</span><br>
+          <span class="nm">${opts.name}</span>
+       </span></span>
+       <p class="txt">${opts.txt}</p>
+       <span class="foot"><span>${opts.footL||''}</span><span>${opts.footR||''}</span></span>
+     </span>`;
+  b.addEventListener('click', ()=>{
+    if(performance.now() < pickLock) return;
+    opts.onPick();
+  });
+  return b;
+}
+
+function renderLevelUp(){
+  const p = S.player;
+  el('scChoice').classList.remove('relicmode');
+  el('chCards').className = 'cards';
+  el('chEyebrow').textContent = `Level ${p.level}`;
+  el('chTitle').textContent = 'Choose a magic';
+  const wrap = el('chCards'); wrap.innerHTML = '';
+  for(const o of rollOptions(3)){
+    let c;
+    if(o.type==='newspell'){
+      const d = SPELL_DEFS[o.key];
+      c = card({color:d.color, icon:o.key, kind:'New magic · '+d.kind, name:d.name, txt:d.blurb,
+        footL:'LEVEL 1', footR:'', onPick:()=>{ applyOption(o); closeChoice(); }});
+    } else if(o.type==='spell'){
+      const d = SPELL_DEFS[o.key]; const sp = S.spells[o.key];
+      const nx = sp.lv+1;
+      const note = nx===7 ? 'Choose 1 of 3 talents at this level.' : nx===15 ? 'Choose your second talent at this level.' : d.blurb;
+      c = card({color:d.color, icon:o.key, kind:`${d.name} · Lv ${sp.lv} → ${nx}`, name:(nx===7||nx===15)?'Milestone':'Deepen',
+        txt:`${note}<br><span style="font-family:var(--f-mono);font-size:11.5px;color:var(--bone-dim)">${describe(o.key)} → ${describe(o.key, nx)}</span>`,
+        footL:`LEVEL ${nx} / 15`, footR:(nx===7||nx===15)?'★ TALENT':'', onPick:()=>{ applyOption(o); closeChoice(); }});
+    } else if(o.type==='passive'){
+      c = artifactCard(o);
+    } else {
+      c = card({color:'#ef476f', icon:'vitality', kind:'Respite', name:'Mend', txt:'Recover <em>40% of your health</em>.',
+        footL:'', footR:'', onPick:()=>{ applyOption(o); closeChoice(); }});
+    }
+    wrap.appendChild(c);
+  }
+  el('scChoice').classList.add('on');
+  focusSheet();
+}
+
+/* first choice of a run: which magic you begin with — your core takes its colour */
+function renderStartSpell(){
+  el('scChoice').classList.remove('relicmode');
+  el('chCards').className = 'cards';
+  el('chEyebrow').textContent = 'Before the first shape arrives';
+  el('chTitle').textContent = 'Choose your starting magic';
+  const wrap = el('chCards'); wrap.innerHTML = '';
+  for(const k of SPELL_KEYS){
+    const d = SPELL_DEFS[k];
+    addSpell(k); const desc = describe(k); delete S.spells[k];   /* level-1 numbers for the card */
+    wrap.appendChild(card({color:d.color, icon:k, kind:'Starting magic · '+d.kind, name:d.name,
+      txt:`${d.blurb}<br><span style="font-family:var(--f-mono);font-size:11.5px;color:var(--bone-dim)">${desc}</span>`,
+      footL:'LEVEL 1', footR:'CORE · '+d.name.toUpperCase(),
+      onPick:()=>{ chooseStartSpell(k); closeChoice(); }}));
+  }
+  el('scChoice').classList.add('on');
+  focusSheet();
+}
+
+function artifactCard(o){
+  const d = ARTIFACT_DEFS[o.key];
+  const cur = S.passives[o.key]||0, lv = cur+1;
+  const used = heldArtifacts().length;
+  const bound = d.req ? SPELL_DEFS[d.req] : null;
+  return card({
+    relic: cur===0,
+    color: bound ? bound.color : '#9aa6c4',
+    icon: d.icon,
+    kind: cur===0 ? (bound ? `Relic · bound to ${bound.name}` : `Relic · ${d.trait}`) : `Artifact · rank up`,
+    name: d.name,
+    txt: d.txt,
+    footL:`RANK ${lv} / ${d.max}`,
+    footR: cur===0 ? `TAKES SLOT ${used+1} / ${ARTIFACT_SLOTS}` : `HELD · ${used}/${ARTIFACT_SLOTS} SLOTS`,
+    onPick:()=>{ applyOption(o); closeChoice(); }
+  });
+}
+
+function renderArtifactChoice(job){
+  el('chEyebrow').textContent =
+      job.start ? 'Before the first shape arrives'
+    : job.elite ? 'A greater shape breaks · relic recovered'
+    : `${waveDef(job.wave||0).boss} falls · relic recovered`;
+  el('chTitle').textContent = heldArtifacts().length >= ARTIFACT_SLOTS ? 'Deepen an artifact'
+    : job.start ? 'Choose a starting relic' : 'Claim an artifact';
+  const wrap = el('chCards');
+  wrap.innerHTML = '';
+  wrap.className = 'relic-list';
+  el('scChoice').classList.add('relicmode');
+
+  /* the slot board, so you can see exactly what this is going into */
+  const held = heldArtifacts();
+  const board = document.createElement('div');
+  board.className = 'relic-board';
+  let bh = '<span class="rb-label">ARTIFACT SLOTS</span><span class="rb-pips">';
+  for(let i=0;i<ARTIFACT_SLOTS;i++){
+    const k = held[i];
+    bh += k ? `<i class="rb filled" title="${ARTIFACT_DEFS[k].name}"></i>`
+            : `<i class="rb${i===held.length?' next':''}"></i>`;
+  }
+  bh += `</span><span class="rb-count">${held.length} / ${ARTIFACT_SLOTS}</span>`;
+  board.innerHTML = bh;
+  wrap.appendChild(board);
+
+  for(const o of rollArtifacts(3)){
+    if(o.type !== 'passive'){
+      wrap.appendChild(relicPlate({
+        icon:'vitality', color:'#ef476f', name:'Mend', bound:'Respite',
+        txt:'Recover <em>40% of your health</em>.', rank:0, max:0,
+        onPick:()=>{ applyOption(o); closeChoice(); }
+      }));
+      continue;
+    }
+    const d = ARTIFACT_DEFS[o.key];
+    const cur = S.passives[o.key]||0;
+    const bound = d.req ? SPELL_DEFS[d.req] : null;
+    wrap.appendChild(relicPlate({
+      icon: d.icon, color: bound ? bound.color : '#c9a227',
+      name: d.name, bound: bound ? 'BOUND TO ' + bound.name.toUpperCase() : d.trait.toUpperCase(),
+      txt: d.txt, rank: cur, max: d.max,
+      slot: cur===0 ? held.length+1 : null,
+      onPick:()=>{ applyOption(o); closeChoice(); }
+    }));
+  }
+  el('scChoice').classList.add('on');
+  focusSheet();
+}
+
+/* A relic is not an upgrade card: wide plate, socketed glyph, rank shown as pips. */
+function relicPlate(o){
+  const b = document.createElement('button');
+  b.className = 'relic-plate';
+  b.type = 'button';
+  let pips = '';
+  for(let i=0;i<o.max;i++) pips += `<i class="${i<o.rank?'on':(i===o.rank?'gain':'')}"></i>`;
+  b.innerHTML =
+    `<span class="rp-socket" style="--c:${o.color}">${ico(o.icon,o.color)}</span>
+     <span class="rp-body">
+       <span class="rp-bound">${o.bound}</span>
+       <span class="rp-name">${o.name}</span>
+       <span class="rp-txt">${o.txt}</span>
+     </span>
+     <span class="rp-meta">
+       ${o.max ? `<span class="rp-pips">${pips}</span>` : ''}
+       <span class="rp-rank">${o.max ? (o.rank===0 ? 'NEW · SLOT '+o.slot : 'RANK '+o.rank+' → '+(o.rank+1)) : ''}</span>
+     </span>`;
+  b.addEventListener('click', ()=>{
+    if(performance.now() < pickLock) return;
+    o.onPick();
+  });
+  return b;
+}
+
+/* three talents per magic; level 7 offers all three, level 15 offers the two you passed on */
+function renderTalent(key, tier){
+  const d = SPELL_DEFS[key], sp = S.spells[key];
+  el('scChoice').classList.remove('relicmode');
+  el('chCards').className = 'cards';
+  el('chEyebrow').textContent = `${d.name} · Level ${tier}`;
+  el('chTitle').textContent = tier===7 ? 'Choose a talent · 1 of 2' : 'Choose a talent · 2 of 2';
+  const wrap = el('chCards'); wrap.innerHTML = '';
+  for(const u of upgradesOf(key)){
+    if(u.id===sp.t7) continue;
+    wrap.appendChild(card({talent:true, color:d.color, icon:key, kind:'Talent · Lv '+tier, name:u.name, txt:u.txt,
+      footL:d.name.toUpperCase(), footR:'TALENT',
+      onPick:()=>{ chooseTalent(key, tier, u.id); closeChoice(); }}));
+  }
+  el('scChoice').classList.add('on');
+  focusSheet();
+}
+
+function initChoices(){
+  on('choice:open', showChoice);
+}
+
+/* ==== js/ui/screens.js ==== */
+/* Title, pause and game-over screens, and the buttons on them. */
+
+
+
+
+
+
+
+
+
+
+const mmss = t => `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+
+function showBest(){
+  const b = loadBest();
+  if(!b) return;
+  el('bestLine').textContent = `Best run — ${mmss(b.time)} · wave ${roman(b.wave)} · ${b.kills} broken`;
+}
+
+/* the title screen, with nothing else open */
+function showTitle(){
+  for(const id of ['scChoice','scPause','scOver']) el(id).classList.remove('on');
+  el('scStart').classList.add('on');
+  showBest();
+}
+
+function start(){
+  el('scStart').classList.remove('on');
+  el('scOver').classList.remove('on');
+  el('scPause').classList.remove('on');
+  el('scChoice').classList.remove('on');
+  newGame();
+}
+
+function togglePause(force){
+  if(!S.running || S.over || S.choiceOpen) return;
+  const want = force!=null ? force : !S.paused;
+  S.paused = want;
+  el('scPause').classList.toggle('on', want);
+  if(want) el('pauseLoadout').innerHTML = loadoutHTML();
+}
+
+function showGameOver(){
+  const p = S.player;
+  el('overTitle').textContent = S.wave>=3 ? 'Undone' : 'Unmade';
+  el('overStats').innerHTML =
+    `<div><div class="k">Survived</div><div class="v">${mmss(S.time)}</div></div>
+     <div><div class="k">Wave reached</div><div class="v">${roman(S.wave+1)}</div></div>
+     <div><div class="k">Shapes broken</div><div class="v">${S.kills}</div></div>
+     <div><div class="k">Conjurer level</div><div class="v">${p.level}</div></div>
+     <div><div class="k">Artifact slots</div><div class="v">${heldArtifacts().length}/${ARTIFACT_SLOTS}</div></div>`;
+  el('overLoadout').innerHTML = loadoutHTML();
+  el('scOver').classList.add('on');
+}
+
+function initScreens(){
+  on('run:over', showGameOver);
+  el('btnStart').addEventListener('click', start);
+  el('btnAgain').addEventListener('click', start);
+  el('btnResume').addEventListener('click', ()=>togglePause(false));
+  el('btnQuit').addEventListener('click', ()=>{ togglePause(false); S.running=false; el('scStart').classList.add('on'); showBest(); });
+  el('tgNormal').addEventListener('click', ()=>{ S.quick=false; el('tgNormal').setAttribute('aria-pressed','true'); el('tgQuick').setAttribute('aria-pressed','false'); });
+  el('tgQuick').addEventListener('click', ()=>{ S.quick=true; el('tgQuick').setAttribute('aria-pressed','true'); el('tgNormal').setAttribute('aria-pressed','false'); });
+}
+
+/* ==== js/main.js ==== */
+/* Entry point: wire the systems together and land on the title screen.
+   The spell registry is imported first on purpose: every spell module is fully loaded
+   before anything that reads the registry at start-up. */
+
+
+
+
+
+
+
+
+
+window.addEventListener('resize', resize);
+initInput(() => togglePause());
+initScreens();
+initHUD();
+initChoices();
+
+function boot(){
+  resize();
+  /* never inherit screen visibility from a restored DOM — a boot always lands on the title */
+  showTitle();
+  resetIdle();
+  startLoop();
+}
+/* claude.ai artifact hot-reload hooks; ignored anywhere else */
+try{ window.claude?.hot?.snapshot?.(()=>({})); }catch(e){}
+if(window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
